@@ -889,31 +889,116 @@
     }
 
     function applyFilter(type) {
-      if (!warpedRawData) return;
-      document.querySelectorAll('.filter-bar button').forEach(b => b.classList.remove('active'));
-      document.getElementById('flt-' + type).classList.add('active');
 
-      const w = warpedRawData.width, h = warpedRawData.height;
-      const copy = resultCtx.createImageData(w, h);
-      const src = warpedRawData.data;
-      const dst = copy.data;
+  if (!warpedRawData) return;
 
-      for (let i = 0; i < src.length; i += 4) {
-        if (type === 'orig') {
-          dst[i] = src[i]; dst[i+1] = src[i+1]; dst[i+2] = src[i+2]; dst[i+3] = 255;
-        } else if (type === 'enhance') {
-          const r = Math.min(255, Math.max(0, (src[i] - 40) * 1.45));
-          const g = Math.min(255, Math.max(0, (src[i+1] - 40) * 1.45));
-          const b = Math.min(255, Math.max(0, (src[i+2] - 40) * 1.45));
-          dst[i] = r; dst[i+1] = g; dst[i+2] = b; dst[i+3] = 255;
-        } else if (type === 'bw') {
-          const gray = 0.299 * src[i] + 0.587 * src[i+1] + 0.114 * src[i+2];
-          const val = gray > 135 ? 255 : Math.max(0, (gray - 30) * 1.2);
-          dst[i] = dst[i+1] = dst[i+2] = val; dst[i+3] = 255;
-        }
-      }
-      resultCtx.putImageData(copy, 0, 0);
+  document
+    .querySelectorAll('.filter-bar button')
+    .forEach(btn => btn.classList.remove('active'));
+
+  document
+    .getElementById('flt-' + type)
+    .classList.add('active');
+
+  const w = warpedRawData.width;
+  const h = warpedRawData.height;
+
+  const output = resultCtx.createImageData(w, h);
+
+  const src = warpedRawData.data;
+  const dst = output.data;
+
+  let avg = 0;
+
+  for (let i = 0; i < src.length; i += 4) {
+    avg += (
+      src[i] * 0.299 +
+      src[i + 1] * 0.587 +
+      src[i + 2] * 0.114
+    );
+  }
+
+  avg /= (src.length / 4);
+
+  for (let i = 0; i < src.length; i += 4) {
+
+    let r = src[i];
+    let g = src[i + 1];
+    let b = src[i + 2];
+
+    if (type === 'orig') {
+
+      dst[i] = r;
+      dst[i + 1] = g;
+      dst[i + 2] = b;
+      dst[i + 3] = 255;
+
+      continue;
     }
+
+    const gray =
+      r * 0.299 +
+      g * 0.587 +
+      b * 0.114;
+
+    if (type === 'enhance') {
+
+      let v = (gray - avg) * 1.55 + 220;
+
+      v = Math.max(0, Math.min(255, v));
+
+      dst[i] =
+      dst[i + 1] =
+      dst[i + 2] = v;
+
+      dst[i + 3] = 255;
+    }
+
+    else if (type === 'hd') {
+
+      const contrast = 1.8;
+
+      r = ((r - 128) * contrast) + 128;
+      g = ((g - 128) * contrast) + 128;
+      b = ((b - 128) * contrast) + 128;
+
+      r += 18;
+      g += 18;
+      b += 18;
+
+      r = Math.max(0, Math.min(255, r));
+      g = Math.max(0, Math.min(255, g));
+      b = Math.max(0, Math.min(255, b));
+
+      dst[i] = r;
+      dst[i + 1] = g;
+      dst[i + 2] = b;
+      dst[i + 3] = 255;
+    }
+
+    else if (type === 'bw') {
+
+      const threshold =
+        avg > 160
+        ? avg - 10
+        : avg + 15;
+
+      const v =
+        gray > threshold
+        ? 255
+        : 0;
+
+      dst[i] =
+      dst[i + 1] =
+      dst[i + 2] =
+      v;
+
+      dst[i + 3] = 255;
+    }
+  }
+
+  resultCtx.putImageData(output, 0, 0);
+}
 
     function backToCrop() {
       document.getElementById('scan-step-result').style.display = 'none';
