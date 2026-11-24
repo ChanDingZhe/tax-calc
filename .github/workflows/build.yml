@@ -22,16 +22,36 @@ jobs:
           distribution: "temurin"
           java-version: "17"
 
-      - name: Install & Build Android Project
+      # ============ 新增：从 Secret 还原 keystore ============
+      - name: Restore keystore from secret
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
         run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::KEYSTORE_BASE64 secret is missing"
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > "${{ github.workspace }}/toolbox-release.keystore"
+          ls -la "${{ github.workspace }}/toolbox-release.keystore"
+
+      - name: Install & Build Android Project
+        env:
+          STORE_PASS: ${{ secrets.KEYSTORE_STORE_PASS }}
+          KEY_PASS: ${{ secrets.KEYSTORE_KEY_PASS }}
+        run: |
+          if [ -z "$STORE_PASS" ] || [ -z "$KEY_PASS" ]; then
+            echo "::error::KEYSTORE_STORE_PASS or KEYSTORE_KEY_PASS secret is missing"
+            exit 1
+          fi
+
           npm install
           npx cap init "日常百宝箱" "com.yozor.toolbox" --web-dir www
           npx cap add android
           npx cap sync
 
-          # 1. 注入权限与确定性固定签名（保证每次打包签名完全一致，直接原地覆盖更新不卸载）
+          # 1. 注入权限与原生 SAF 目录选择器
           python3 - << 'EOF'
-          import os, subprocess
+          import os
 
           # 写入权限
           manifest_path = "android/app/src/main/AndroidManifest.xml"
@@ -46,7 +66,7 @@ jobs:
           """
           open(manifest_path, "w").write(s.replace("</manifest>", perms + "\n</manifest>"))
 
-          # 注入原生 Android 系统目录选择器 (SAF ACTION_OPEN_DOCUMENT_TREE)
+          # 注入 MainActivity.java（原生 SAF）
           main_act = "android/app/src/main/java/com/yozor/toolbox/MainActivity.java"
           java_code = '''package com.yozor.toolbox;
 
@@ -148,27 +168,26 @@ jobs:
           open(main_act, "w").write(java_code)
           EOF
 
-          # 2. 使用仓库中固定的 keystore（若首次运行则创建，并配置 build.gradle 固定签名 + 递增 versionCode）
-          if [ ! -f "toolbox-release.keystore" ]; then
-            keytool -genkeypair -v -keystore toolbox-release.keystore -alias toolbox \
-              -keyalg RSA -keysize 2048 -validity 36500 \
-              -storepass yozor123456 -keypass yozor123456 \
-              -dname "CN=Yozor, OU=Dev, O=Personal, L=JB, S=Johor, C=MY"
-          fi
-
+          # 2. 使用 Secret 中的密码配置 build.gradle 固定签名 + 递增 versionCode
           python3 - << 'EOF'
+          import os
+
           gradle_path = "android/app/build.gradle"
           g = open(gradle_path).read()
-          g = g.replace("versionCode 1", f"versionCode {int('${{ github.run_number }}') + 10}")
-          signing_cfg = """
-              signingConfigs {
-                  release {
-                      storeFile file("../../toolbox-release.keystore")
-                      storePassword "yozor123456"
+          g = g.replace("versionCode 1", f"versionCode {int(os.environ['GITHUB_RUN_NUMBER']) + 10}")
+
+          store_pass = os.environ['STORE_PASS']
+          key_pass = os.environ['KEY_PASS']
+
+          signing_cfg = f"""
+              signingConfigs {{
+                  release {{
+                      storeFile file(System.getenv("GITHUB_WORKSPACE") + "/toolbox-release.keystore")
+                      storePassword "{store_pass}"
                       keyAlias "toolbox"
-                      keyPassword "yozor123456"
-                  }
-              }
+                      keyPassword "{key_pass}"
+                  }}
+              }}
           """
           g = g.replace("buildTypes {", signing_cfg + "\n    buildTypes {\n        debug { signingConfig signingConfigs.release }")
           open(gradle_path, "w").write(g)
