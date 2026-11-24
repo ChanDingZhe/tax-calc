@@ -144,10 +144,13 @@
     <!-- 步骤 1：选择或拍摄照片 -->
     <div id="scan-step-upload" class="card">
       <input id="scanInput" type="file" accept="image/*" style="display:none" />
-      <div class="upload-area" onclick="document.getElementById('scanInput').click()">
-        <strong>📷 拍照或选择文件照片</strong>
-        <span>自动透视拉正、去除阴影、一键存相册</span>
-      </div>
+      <button class="btn btn-green" style="margin-top:0; padding:18px; font-size:17px;" onclick="takePhotoForScan()">
+        📷 直接拍照扫描
+      </button>
+      <button class="btn btn-gray" onclick="document.getElementById('scanInput').click()">
+        🖼️ 从相册选择照片
+      </button>
+      <div class="hint-text" style="margin-top:12px;">支持四点透视拉正、去阴影增白、一键存相册</div>
     </div>
 
     <!-- 步骤 2：拖动四角框选文件 -->
@@ -266,6 +269,34 @@
     let draggingIdx = -1;
     let warpedRawData = null; // 拉正后的原始像素 ImageData
 
+async function takePhotoForScan() {
+      try {
+        if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Camera) {
+          const { Camera } = window.Capacitor.Plugins;
+          const photo = await Camera.getPhoto({
+            quality: 90,
+            allowEditing: false,
+            resultType: 'dataUrl',
+            source: 'CAMERA'
+          });
+          const img = new Image();
+          img.onload = () => {
+            rawImg = img;
+            initCropCanvas();
+            document.getElementById('scan-step-upload').style.display = 'none';
+            document.getElementById('scan-step-result').style.display = 'none';
+            document.getElementById('scan-step-crop').style.display = 'block';
+          };
+          img.src = photo.dataUrl;
+        } else {
+          document.getElementById('scanInput').click();
+        }
+      } catch (err) {
+        if (err.message && !err.message.includes('cancelled')) {
+          alert('无法打开相机: ' + err.message);
+        }
+      }
+    }
     scanInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (!file) return;
