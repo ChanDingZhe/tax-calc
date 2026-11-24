@@ -3,22 +3,21 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>私人工具箱</title>
-  <!-- 引入本地离线 jsPDF 库 -->
+  <title>日常百宝箱</title>
   <script src="jspdf.umd.min.js"></script>
   <style>
     * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     body {
-      margin: 0; padding: 20px 16px 84px; background: #121212; color: #f5f5f5;
-      min-height: 100vh;
+      margin: 0; padding: 18px 14px 82px; background: #121212; color: #f5f5f5;
+      min-height: 100vh; user-select: none; -webkit-user-select: none;
     }
-    h2 { margin: 0 0 18px; font-size: 20px; font-weight: 600; color: #e0e0e0; }
+    h2 { margin: 0 0 16px; font-size: 19px; font-weight: 600; color: #e0e0e0; }
     .page { display: none; }
     .page.active { display: block; }
 
-    /* 通用卡片与输入样式 */
+    /* 通用卡片与输入 */
     .card {
-      background: #1e1e1e; border-radius: 16px; padding: 18px; margin-bottom: 14px;
+      background: #1e1e1e; border-radius: 16px; padding: 16px; margin-bottom: 14px;
       border: 1px solid #2c2c2c;
     }
     label { display: block; font-size: 13px; color: #9e9e9e; margin-bottom: 8px; }
@@ -29,52 +28,64 @@
       width: 100%; background: transparent; border: none; outline: none;
       color: #fff; font-size: 28px; font-weight: 700;
     }
-    input[type="text"] { font-size: 18px; font-weight: 500; }
+    input[type="text"] { font-size: 17px; font-weight: 500; }
 
-    /* 算税页面样式 */
+    /* 算税样式 */
     .presets { display: flex; gap: 8px; margin-top: 12px; }
-    .presets button {
+    .presets button, .filter-bar button {
       flex: 1; padding: 10px 0; border-radius: 8px; border: 1px solid #333;
       background: #282828; color: #ddd; font-size: 13px; font-weight: 600;
     }
-    .presets button:active { background: #4caf50; color: #000; }
+    .presets button:active, .filter-bar button.active { background: #4caf50; color: #000; border-color: #4caf50; }
     .result-box {
       background: linear-gradient(135deg, #1b3a24, #16291c);
-      border: 1px solid #2e6b3e; border-radius: 16px; padding: 20px;
+      border: 1px solid #2e6b3e; border-radius: 16px; padding: 18px;
     }
     .total-label { font-size: 14px; color: #a5d6a7; }
-    .total-val { font-size: 40px; font-weight: 800; color: #69f0ae; margin: 6px 0 12px; }
+    .total-val { font-size: 38px; font-weight: 800; color: #69f0ae; margin: 6px 0 12px; }
     .detail-row {
       display: flex; justify-content: space-between; font-size: 14px;
       color: #c8e6c9; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.1);
     }
+
+    /* 按钮 */
     .btn {
-      margin-top: 14px; width: 100%; padding: 14px; border-radius: 12px;
-      border: none; font-size: 16px; font-weight: 600; cursor: pointer;
+      margin-top: 12px; width: 100%; padding: 14px; border-radius: 12px;
+      border: none; font-size: 15px; font-weight: 600; cursor: pointer;
     }
+    .btn-row { display: flex; gap: 10px; margin-top: 12px; }
+    .btn-row .btn { margin-top: 0; }
     .btn-gray { background: #2c2c2c; color: #ccc; }
     .btn-green { background: #4caf50; color: #000; }
     .btn-green:disabled { background: #2e4a30; color: #777; }
 
-    /* 照片转 PDF 页面样式 */
+    /* 上传框 */
     .upload-area {
-      border: 2px dashed #444; border-radius: 14px; padding: 26px 16px;
+      border: 2px dashed #444; border-radius: 14px; padding: 24px 16px;
       text-align: center; color: #aaa; background: #181818; cursor: pointer;
     }
-    .upload-area strong { display: block; font-size: 16px; color: #fff; margin-bottom: 6px; }
+    .upload-area strong { display: block; font-size: 15px; color: #fff; margin-bottom: 6px; }
+
+    /* PDF 列表 */
     .img-list { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
     .img-item {
       display: flex; align-items: center; background: #252525; padding: 8px 10px;
       border-radius: 10px; gap: 10px;
     }
-    .img-item img { width: 52px; height: 52px; object-fit: cover; border-radius: 6px; background: #000; }
+    .img-item img { width: 50px; height: 50px; object-fit: cover; border-radius: 6px; background: #000; }
     .img-info { flex: 1; font-size: 13px; color: #ddd; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .img-actions { display: flex; gap: 6px; }
-    .img-actions button {
-      background: #333; color: #fff; border: none; border-radius: 6px;
-      padding: 6px 10px; font-size: 13px;
-    }
+    .img-actions button { background: #333; color: #fff; border: none; border-radius: 6px; padding: 6px 10px; font-size: 13px; }
     .img-actions button.del { background: #5c2626; color: #ff8a80; }
+
+    /* 文件扫描器画布 */
+    .canvas-wrap {
+      position: relative; width: 100%; display: flex; justify-content: center;
+      background: #0a0a0a; border-radius: 12px; overflow: hidden; touch-action: none;
+    }
+    #cropCanvas, #resultCanvas { max-width: 100%; max-height: 60vh; display: block; }
+    .filter-bar { display: flex; gap: 8px; margin-top: 12px; }
+    .hint-text { font-size: 12px; color: #9e9e9e; text-align: center; margin-top: 8px; }
 
     /* 底部导航栏 */
     .tab-bar {
@@ -84,7 +95,7 @@
     }
     .tab-item {
       flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-      color: #888; font-size: 13px; font-weight: 600; border: none; background: transparent;
+      color: #888; font-size: 12px; font-weight: 600; border: none; background: transparent;
     }
     .tab-item.active { color: #69f0ae; }
     .tab-icon { font-size: 20px; margin-bottom: 2px; }
@@ -95,7 +106,6 @@
   <!-- 页面 1：餐饮含税计算器 -->
   <div id="page-tax" class="page active">
     <h2>餐饮含税计算器</h2>
-
     <div class="card">
       <label>食物价钱 (Price)</label>
       <div class="input-row">
@@ -103,7 +113,6 @@
         <input id="price" type="number" inputmode="decimal" step="0.01" placeholder="0.00" autofocus />
       </div>
     </div>
-
     <div class="card">
       <label>税率 (Tax %)</label>
       <div class="input-row">
@@ -117,7 +126,6 @@
         <button onclick="setTax(0)">0%</button>
       </div>
     </div>
-
     <div class="result-box">
       <div class="total-label">实际应付总额</div>
       <div class="total-val" id="total">RM 0.00</div>
@@ -126,32 +134,69 @@
         <span>现金凑整: <strong id="cashRound">RM 0.00</strong></span>
       </div>
     </div>
-
     <button class="btn btn-gray" onclick="clearPrice()">清空价钱</button>
   </div>
 
-  <!-- 页面 2：照片转 PDF -->
-  <div id="page-pdf" class="page">
-    <h2>照片转 PDF（离线）</h2>
+  <!-- 页面 2：离线文件扫描（拉正 + 滤镜 + 存相册） -->
+  <div id="page-scan" class="page">
+    <h2>离线文件扫描</h2>
 
-    <div class="card">
-      <label>PDF 文件名</label>
-      <div class="input-row">
-        <input id="pdfName" type="text" placeholder="输入文件名（留空则自动按时间命名）" />
+    <!-- 步骤 1：选择或拍摄照片 -->
+    <div id="scan-step-upload" class="card">
+      <input id="scanInput" type="file" accept="image/*" style="display:none" />
+      <div class="upload-area" onclick="document.getElementById('scanInput').click()">
+        <strong>📷 拍照或选择文件照片</strong>
+        <span>自动透视拉正、去除阴影、一键存相册</span>
       </div>
     </div>
 
+    <!-- 步骤 2：拖动四角框选文件 -->
+    <div id="scan-step-crop" class="card" style="display:none">
+      <div class="canvas-wrap">
+        <canvas id="cropCanvas"></canvas>
+      </div>
+      <div class="hint-text">拖动 4 个绿色圆点对准纸张的四个角落</div>
+      <div class="btn-row">
+        <button class="btn btn-gray" onclick="resetScan()">重选照片</button>
+        <button class="btn btn-green" onclick="processPerspective()">拉正并扫描</button>
+      </div>
+    </div>
+
+    <!-- 步骤 3：预览滤镜并存入相册 -->
+    <div id="scan-step-result" class="card" style="display:none">
+      <div class="canvas-wrap">
+        <canvas id="resultCanvas"></canvas>
+      </div>
+      <div class="filter-bar">
+        <button id="flt-enhance" class="active" onclick="applyFilter('enhance')">文档增白</button>
+        <button id="flt-bw" onclick="applyFilter('bw')">黑白扫描</button>
+        <button id="flt-orig" onclick="applyFilter('orig')">原色拉正</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-gray" onclick="backToCrop()">重新调角</button>
+        <button id="saveAlbumBtn" class="btn btn-green" onclick="saveScanToAlbum()">存入相册</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 页面 3：照片转 PDF -->
+  <div id="page-pdf" class="page">
+    <h2>照片转 PDF</h2>
+    <div class="card">
+      <label>PDF 文件名</label>
+      <div class="input-row">
+        <input id="pdfName" type="text" placeholder="留空则自动按时间命名" />
+      </div>
+    </div>
     <div class="card">
       <input id="fileInput" type="file" accept="image/*" multiple style="display:none" />
       <div class="upload-area" onclick="document.getElementById('fileInput').click()">
         <strong>+ 点击选择照片（支持多选）</strong>
-        <span>可分多次添加，支持调整前后顺序</span>
+        <span>可调整前后顺序，合成 A4 PDF</span>
       </div>
-
       <div id="imgList" class="img-list"></div>
     </div>
-
-    <button id="genPdfBtn" class="btn btn-green" onclick="generatePDF()" disabled>生成并下载 PDF (0 张)</button>
+    <button id="genPdfBtn" class="btn btn-green" onclick="generatePDF()" disabled>生成并保存 PDF (0 张)</button>
     <button class="btn btn-gray" onclick="clearImages()">清空所有照片</button>
   </div>
 
@@ -161,6 +206,10 @@
       <span class="tab-icon">🧮</span>
       <span>餐饮算税</span>
     </button>
+    <button class="tab-item" onclick="switchTab('scan', this)">
+      <span class="tab-icon">📷</span>
+      <span>文件扫描</span>
+    </button>
     <button class="tab-item" onclick="switchTab('pdf', this)">
       <span class="tab-icon">📄</span>
       <span>照片转PDF</span>
@@ -168,7 +217,7 @@
   </div>
 
   <script>
-    /* ========== Tab 切换逻辑 ========== */
+    /* ========== 底部导航切换 ========== */
     function switchTab(tabName, el) {
       document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
       document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
@@ -199,24 +248,347 @@
       taxAmtEl.textContent = 'RM ' + (taxCents / 100).toFixed(2);
       cashRoundEl.textContent = 'RM ' + (Math.round(total * 20) / 20).toFixed(2);
     }
-
-    function setTax(val) {
-      taxEl.value = val;
-      calculate();
-      priceEl.focus();
-    }
-
-    function clearPrice() {
-      priceEl.value = '';
-      calculate();
-      priceEl.focus();
-    }
-
+    function setTax(val) { taxEl.value = val; calculate(); priceEl.focus(); }
+    function clearPrice() { priceEl.value = ''; calculate(); priceEl.focus(); }
     priceEl.addEventListener('input', calculate);
     taxEl.addEventListener('input', calculate);
 
-    /* ========== 2. 照片转 PDF 逻辑 ========== */
-    let selectedImages = []; // 存储 { name, dataUrl }
+    /* ========== 2. 离线文件扫描（四点透视拉正 + 滤镜 + 相册保存） ========== */
+    const scanInput = document.getElementById('scanInput');
+    const cropCanvas = document.getElementById('cropCanvas');
+    const cropCtx = cropCanvas.getContext('2d');
+    const resultCanvas = document.getElementById('resultCanvas');
+    const resultCtx = resultCanvas.getContext('2d');
+
+    let rawImg = null;
+    let displayScale = 1;
+    let corners = []; // 顺序：左上、右上、右下、左下 (基于原图坐标)
+    let draggingIdx = -1;
+    let warpedRawData = null; // 拉正后的原始像素 ImageData
+
+    scanInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const img = new Image();
+        img.onload = () => {
+          rawImg = img;
+          initCropCanvas();
+          document.getElementById('scan-step-upload').style.display = 'none';
+          document.getElementById('scan-step-result').style.display = 'none';
+          document.getElementById('scan-step-crop').style.display = 'block';
+        };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+      scanInput.value = '';
+    });
+
+    function initCropCanvas() {
+      const maxW = Math.min(window.innerWidth - 60, 600);
+      displayScale = maxW / rawImg.width;
+      cropCanvas.width = rawImg.width * displayScale;
+      cropCanvas.height = rawImg.height * displayScale;
+
+      // 默认内缩 12% 作为初始 4 个角点
+      const padX = rawImg.width * 0.12;
+      const padY = rawImg.height * 0.12;
+      corners = [
+        { x: padX, y: padY },
+        { x: rawImg.width - padX, y: padY },
+        { x: rawImg.width - padX, y: rawImg.height - padY },
+        { x: padX, y: rawImg.height - padY }
+      ];
+      drawCropUI();
+    }
+
+    function drawCropUI() {
+      cropCtx.clearRect(0, 0, cropCanvas.width, cropCanvas.height);
+      cropCtx.drawImage(rawImg, 0, 0, cropCanvas.width, cropCanvas.height);
+
+      // 半透明暗色遮罩
+      cropCtx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+      cropCtx.fillRect(0, 0, cropCanvas.width, cropCanvas.height);
+
+      // 挖出选区原图亮度并画边框
+      cropCtx.save();
+      cropCtx.beginPath();
+      corners.forEach((p, i) => {
+        const sx = p.x * displayScale, sy = p.y * displayScale;
+        if (i === 0) cropCtx.moveTo(sx, sy);
+        else cropCtx.lineTo(sx, sy);
+      });
+      cropCtx.closePath();
+      cropCtx.clip();
+      cropCtx.drawImage(rawImg, 0, 0, cropCanvas.width, cropCanvas.height);
+      cropCtx.restore();
+
+      // 绿色边框线
+      cropCtx.strokeStyle = '#69f0ae';
+      cropCtx.lineWidth = 2.5;
+      cropCtx.beginPath();
+      corners.forEach((p, i) => {
+        const sx = p.x * displayScale, sy = p.y * displayScale;
+        if (i === 0) cropCtx.moveTo(sx, sy);
+        else cropCtx.lineTo(sx, sy);
+      });
+      cropCtx.closePath();
+      cropCtx.stroke();
+
+      // 4 个大号可触摸圆点
+      corners.forEach((p) => {
+        const sx = p.x * displayScale, sy = p.y * displayScale;
+        cropCtx.beginPath();
+        cropCtx.arc(sx, sy, 13, 0, Math.PI * 2);
+        cropCtx.fillStyle = 'rgba(105, 240, 174, 0.35)';
+        cropCtx.fill();
+
+        cropCtx.beginPath();
+        cropCtx.arc(sx, sy, 7, 0, Math.PI * 2);
+        cropCtx.fillStyle = '#69f0ae';
+        cropCtx.fill();
+        cropCtx.strokeStyle = '#000';
+        cropCtx.lineWidth = 1.5;
+        cropCtx.stroke();
+      });
+    }
+
+    function getPointerPos(e) {
+      const rect = cropCanvas.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      return {
+        x: (clientX - rect.left) / displayScale,
+        y: (clientY - rect.top) / displayScale
+      };
+    }
+
+    function onPointerDown(e) {
+      const pos = getPointerPos(e);
+      const hitRadius = 35 / displayScale;
+      let minDist = hitRadius;
+      draggingIdx = -1;
+      corners.forEach((p, idx) => {
+        const d = Math.hypot(p.x - pos.x, p.y - pos.y);
+        if (d < minDist) { minDist = d; draggingIdx = idx; }
+      });
+    }
+
+    function onPointerMove(e) {
+      if (draggingIdx === -1) return;
+      e.preventDefault();
+      const pos = getPointerPos(e);
+      corners[draggingIdx].x = Math.max(0, Math.min(rawImg.width, pos.x));
+      corners[draggingIdx].y = Math.max(0, Math.min(rawImg.height, pos.y));
+      drawCropUI();
+    }
+
+    function onPointerUp() { draggingIdx = -1; }
+
+    cropCanvas.addEventListener('touchstart', onPointerDown, { passive: false });
+    cropCanvas.addEventListener('touchmove', onPointerMove, { passive: false });
+    cropCanvas.addEventListener('touchend', onPointerUp);
+    cropCanvas.addEventListener('mousedown', onPointerDown);
+    window.addEventListener('mousemove', onPointerMove);
+    window.addEventListener('mouseup', onPointerUp);
+
+    // 求解 3x3 透视单应性矩阵 (目标矩形 -> 原图四边形逆映射)
+    function computeHomography(srcPts, dstPts) {
+      const A = [];
+      for (let i = 0; i < 4; i++) {
+        const sx = srcPts[i].x, sy = srcPts[i].y;
+        const dx = dstPts[i].x, dy = dstPts[i].y;
+        A.push([sx, sy, 1, 0, 0, 0, -dx * sx, -dx * sy, dx]);
+        A.push([0, 0, 0, sx, sy, 1, -dy * sx, -dy * sy, dy]);
+      }
+      // 高斯消元
+      const n = 8;
+      for (let i = 0; i < n; i++) {
+        let maxRow = i;
+        for (let k = i + 1; k < n; k++) {
+          if (Math.abs(A[k][i]) > Math.abs(A[maxRow][i])) maxRow = k;
+        }
+        [A[i], A[maxRow]] = [A[maxRow], A[i]];
+        for (let k = i + 1; k < n; k++) {
+          const factor = A[k][i] / A[i][i];
+          for (let j = i; j <= n; j++) A[k][j] -= factor * A[i][j];
+        }
+      }
+      const h = new Array(9);
+      h[8] = 1;
+      for (let i = n - 1; i >= 0; i--) {
+        let sum = A[i][n];
+        for (let j = i + 1; j < n; j++) sum -= A[i][j] * h[j];
+        h[i] = sum / A[i][i];
+      }
+      return h;
+    }
+
+    function processPerspective() {
+      // 计算输出尺寸（限制最长边 1800px，兼顾清晰度与手机内存速度）
+      const topW = Math.hypot(corners[1].x - corners[0].x, corners[1].y - corners[0].y);
+      const botW = Math.hypot(corners[2].x - corners[3].x, corners[2].y - corners[3].y);
+      const leftH = Math.hypot(corners[3].x - corners[0].x, corners[3].y - corners[0].y);
+      const rightH = Math.hypot(corners[2].x - corners[1].x, corners[2].y - corners[1].y);
+
+      let outW = Math.round(Math.max(topW, botW));
+      let outH = Math.round(Math.max(leftH, rightH));
+      const maxDim = 1800;
+      if (outW > maxDim || outH > maxDim) {
+        const s = maxDim / Math.max(outW, outH);
+        outW = Math.round(outW * s);
+        outH = Math.round(outH * s);
+      }
+
+      // 读出原图像素
+      const offCanvas = document.createElement('canvas');
+      offCanvas.width = rawImg.width;
+      offCanvas.height = rawImg.height;
+      const offCtx = offCanvas.getContext('2d');
+      offCtx.drawImage(rawImg, 0, 0);
+      const srcData = offCtx.getImageData(0, 0, rawImg.width, rawImg.height).data;
+      const srcW = rawImg.width, srcH = rawImg.height;
+
+      const dstRect = [
+        { x: 0, y: 0 },
+        { x: outW, y: 0 },
+        { x: outW, y: outH },
+        { x: 0, y: outH }
+      ];
+      // 计算从目标矩形坐标反查原图坐标的变换矩阵
+      const H = computeHomography(dstRect, corners);
+
+      resultCanvas.width = outW;
+      resultCanvas.height = outH;
+      const outImgData = resultCtx.createImageData(outW, outH);
+      const dst = outImgData.data;
+
+      for (let y = 0; y < outH; y++) {
+        for (let x = 0; x < outW; x++) {
+          const w = H[6] * x + H[7] * y + H[8];
+          const sx = (H[0] * x + H[1] * y + H[2]) / w;
+          const sy = (H[3] * x + H[4] * y + H[5]) / w;
+
+          const x0 = Math.floor(sx), y0 = Math.floor(sy);
+          const dstIdx = (y * outW + x) * 4;
+
+          if (x0 >= 0 && x0 < srcW - 1 && y0 >= 0 && y0 < srcH - 1) {
+            // 双线性插值让文字边缘平滑不锯齿
+            const dx = sx - x0, dy = sy - y0;
+            const w00 = (1 - dx) * (1 - dy);
+            const w10 = dx * (1 - dy);
+            const w01 = (1 - dx) * dy;
+            const w11 = dx * dy;
+
+            const i00 = (y0 * srcW + x0) * 4;
+            const i10 = i00 + 4;
+            const i01 = i00 + srcW * 4;
+            const i11 = i01 + 4;
+
+            dst[dstIdx]     = srcData[i00]*w00 + srcData[i10]*w10 + srcData[i01]*w01 + srcData[i11]*w11;
+            dst[dstIdx + 1] = srcData[i00+1]*w00 + srcData[i10+1]*w10 + srcData[i01+1]*w01 + srcData[i11+1]*w11;
+            dst[dstIdx + 2] = srcData[i00+2]*w00 + srcData[i10+2]*w10 + srcData[i01+2]*w01 + srcData[i11+2]*w11;
+            dst[dstIdx + 3] = 255;
+          } else {
+            dst[dstIdx] = dst[dstIdx+1] = dst[dstIdx+2] = 255;
+            dst[dstIdx + 3] = 255;
+          }
+        }
+      }
+
+      warpedRawData = outImgData;
+      applyFilter('enhance');
+
+      document.getElementById('scan-step-crop').style.display = 'none';
+      document.getElementById('scan-step-result').style.display = 'block';
+    }
+
+    function applyFilter(type) {
+      if (!warpedRawData) return;
+      document.querySelectorAll('.filter-bar button').forEach(b => b.classList.remove('active'));
+      document.getElementById('flt-' + type).classList.add('active');
+
+      const w = warpedRawData.width, h = warpedRawData.height;
+      const copy = resultCtx.createImageData(w, h);
+      const src = warpedRawData.data;
+      const dst = copy.data;
+
+      for (let i = 0; i < src.length; i += 4) {
+        if (type === 'orig') {
+          dst[i] = src[i]; dst[i+1] = src[i+1]; dst[i+2] = src[i+2]; dst[i+3] = 255;
+        } else if (type === 'enhance') {
+          // 提亮白底、压深字迹，保留轻微色彩
+          const r = Math.min(255, Math.max(0, (src[i] - 40) * 1.45));
+          const g = Math.min(255, Math.max(0, (src[i+1] - 40) * 1.45));
+          const b = Math.min(255, Math.max(0, (src[i+2] - 40) * 1.45));
+          dst[i] = r; dst[i+1] = g; dst[i+2] = b; dst[i+3] = 255;
+        } else if (type === 'bw') {
+          // 高对比黑白文档模式
+          const gray = 0.299 * src[i] + 0.587 * src[i+1] + 0.114 * src[i+2];
+          const val = gray > 135 ? 255 : Math.max(0, (gray - 30) * 1.2);
+          dst[i] = dst[i+1] = dst[i+2] = val; dst[i+3] = 255;
+        }
+      }
+      resultCtx.putImageData(copy, 0, 0);
+    }
+
+    function backToCrop() {
+      document.getElementById('scan-step-result').style.display = 'none';
+      document.getElementById('scan-step-crop').style.display = 'block';
+    }
+
+    function resetScan() {
+      document.getElementById('scan-step-crop').style.display = 'none';
+      document.getElementById('scan-step-result').style.display = 'none';
+      document.getElementById('scan-step-upload').style.display = 'block';
+    }
+
+    async function saveScanToAlbum() {
+      const btn = document.getElementById('saveAlbumBtn');
+      btn.disabled = true;
+      btn.textContent = '正在保存...';
+
+      try {
+        const dataUrl = resultCanvas.toDataURL('image/jpeg', 0.92);
+        const fileName = `Scan_${Date.now()}.jpg`;
+
+        if (window.Capacitor && window.Capacitor.isNativePlatform()) {
+          const base64Data = dataUrl.split(',')[1];
+          const { Filesystem, Media, Share } = window.Capacitor.Plugins;
+
+          // 先写入临时文件
+          const savedFile = await Filesystem.writeFile({
+            path: fileName,
+            data: base64Data,
+            directory: 'CACHE'
+          });
+
+          // 优先调用 Media 插件直接存入系统相册
+          if (Media && Media.savePhoto) {
+            await Media.savePhoto({ path: savedFile.uri });
+            alert('已成功存入手机相册！');
+          } else {
+            // 兜底调起系统分享/保存面板
+            await Share.share({ title: fileName, url: savedFile.uri });
+          }
+        } else {
+          // 电脑浏览器测试直接下载
+          const a = document.createElement('a');
+          a.href = dataUrl;
+          a.download = fileName;
+          a.click();
+        }
+      } catch (err) {
+        alert('保存失败: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '存入相册';
+      }
+    }
+
+    /* ========== 3. 照片转 PDF 逻辑 ========== */
+    let selectedImages = [];
     const fileInput = document.getElementById('fileInput');
     const imgListEl = document.getElementById('imgList');
     const genPdfBtn = document.getElementById('genPdfBtn');
@@ -227,7 +599,7 @@
         const dataUrl = await readFileAsDataURL(file);
         selectedImages.push({ name: file.name, dataUrl });
       }
-      fileInput.value = ''; // 允许重复选同一张图
+      fileInput.value = '';
       renderImageList();
     });
 
@@ -255,9 +627,8 @@
         `;
         imgListEl.appendChild(div);
       });
-
       genPdfBtn.disabled = selectedImages.length === 0;
-      genPdfBtn.textContent = `生成并下载 PDF (${selectedImages.length} 张)`;
+      genPdfBtn.textContent = `生成并保存 PDF (${selectedImages.length} 张)`;
     }
 
     function moveImg(index, dir) {
@@ -265,17 +636,8 @@
       [selectedImages[index], selectedImages[target]] = [selectedImages[target], selectedImages[index]];
       renderImageList();
     }
-
-    function removeImg(index) {
-      selectedImages.splice(index, 1);
-      renderImageList();
-    }
-
-    function clearImages() {
-      selectedImages = [];
-      renderImageList();
-    }
-
+    function removeImg(index) { selectedImages.splice(index, 1); renderImageList(); }
+    function clearImages() { selectedImages = []; renderImageList(); }
     function loadImageObj(src) {
       return new Promise((resolve) => {
         const img = new Image();
@@ -291,27 +653,16 @@
 
       try {
         const { jsPDF } = window.jspdf;
-        // 默认 A4 纵向 (210mm x 297mm)
         const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
-        const pageW = 210;
-        const pageH = 297;
-        const margin = 10; // 四周留白 10mm
-        const maxW = pageW - margin * 2;
-        const maxH = pageH - margin * 2;
+        const pageW = 210, pageH = 297, margin = 10;
+        const maxW = pageW - margin * 2, maxH = pageH - margin * 2;
 
         for (let i = 0; i < selectedImages.length; i++) {
           if (i > 0) doc.addPage();
           const imgObj = await loadImageObj(selectedImages[i].dataUrl);
-          
-          // 等比例缩放适应 A4 页面并居中
           const ratio = Math.min(maxW / imgObj.width, maxH / imgObj.height);
-          const drawW = imgObj.width * ratio;
-          const drawH = imgObj.height * ratio;
-          const x = (pageW - drawW) / 2;
-          const y = (pageH - drawH) / 2;
-
-          // 统一使用 JPEG 格式写入，兼容性最好
-          doc.addImage(selectedImages[i].dataUrl, 'JPEG', x, y, drawW, drawH);
+          const drawW = imgObj.width * ratio, drawH = imgObj.height * ratio;
+          doc.addImage(selectedImages[i].dataUrl, 'JPEG', (pageW - drawW) / 2, (pageH - drawH) / 2, drawW, drawH);
         }
 
         let fileName = document.getElementById('pdfName').value.trim();
@@ -329,10 +680,7 @@
             data: base64Data,
             directory: 'CACHE'
           });
-          await Share.share({
-            title: fileName,
-            url: savedFile.uri
-          });
+          await Share.share({ title: fileName, url: savedFile.uri });
         } else {
           doc.save(fileName);
         }
@@ -340,7 +688,7 @@
         alert('生成失败: ' + err.message);
       } finally {
         genPdfBtn.disabled = false;
-        genPdfBtn.textContent = `生成并下载 PDF (${selectedImages.length} 张)`;
+        genPdfBtn.textContent = `生成并保存 PDF (${selectedImages.length} 张)`;
       }
     }
   </script>
