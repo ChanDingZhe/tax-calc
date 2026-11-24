@@ -28,7 +28,18 @@ jobs:
           npx cap init "日常百宝箱" "com.yozor.toolbox" --web-dir www
           npx cap add android
           npx cap sync
-          sed -i 's/<\/manifest>/<uses-permission android:name="android.permission.CAMERA" \/><\/manifest>/' android/app/src/main/AndroidManifest.xml
+          python3 -c '
+          p = "android/app/src/main/AndroidManifest.xml"
+          s = open(p).read()
+          perms = """
+              <uses-permission android:name="android.permission.CAMERA" />
+              <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+              <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+              <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+              <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+          """
+          open(p, "w").write(s.replace("</manifest>", perms + "\n</manifest>"))
+          '
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug

@@ -53,9 +53,11 @@
       margin-top: 12px; width: 100%; padding: 14px; border-radius: 12px;
       border: none; font-size: 15px; font-weight: 600; cursor: pointer;
     }
-    .btn-row { display: flex; gap: 10px; margin-top: 12px; }
+    .btn-sm { padding: 10px 8px; font-size: 13px; border-radius: 10px; }
+    .btn-row { display: flex; gap: 8px; margin-top: 12px; }
     .btn-row .btn { margin-top: 0; }
     .btn-gray { background: #2c2c2c; color: #ccc; }
+    .btn-blue { background: #1e3a5f; color: #82b1ff; }
     .btn-green { background: #4caf50; color: #000; }
     .btn-green:disabled { background: #2e4a30; color: #777; }
 
@@ -137,7 +139,7 @@
     <button class="btn btn-gray" onclick="clearPrice()">清空价钱</button>
   </div>
 
-  <!-- 页面 2：离线文件扫描（拉正 + 滤镜 + 存相册） -->
+  <!-- 页面 2：智能离线文件扫描 -->
   <div id="page-scan" class="page">
     <h2>离线文件扫描</h2>
 
@@ -150,18 +152,20 @@
       <button class="btn btn-gray" onclick="document.getElementById('scanInput').click()">
         🖼️ 从相册选择照片
       </button>
-      <div class="hint-text" style="margin-top:12px;">支持四点透视拉正、去阴影增白、一键存相册</div>
+      <div class="hint-text" style="margin-top:12px;">自动识别纸张边缘 · 拖动带十字放大镜微调 · 一键存相册</div>
     </div>
 
-    <!-- 步骤 2：拖动四角框选文件 -->
+    <!-- 步骤 2：智能框选 + 拖动十字放大镜微调 -->
     <div id="scan-step-crop" class="card" style="display:none">
       <div class="canvas-wrap">
         <canvas id="cropCanvas"></canvas>
       </div>
-      <div class="hint-text">拖动 4 个绿色圆点对准纸张的四个角落</div>
+      <div class="hint-text" id="detectHint">已自动识别纸张边缘，按住绿点拖动可开启放大镜微调</div>
       <div class="btn-row">
-        <button class="btn btn-gray" onclick="resetScan()">重选照片</button>
-        <button class="btn btn-green" onclick="processPerspective()">拉正并扫描</button>
+        <button class="btn btn-sm btn-gray" onclick="resetScan()">重选</button>
+        <button class="btn btn-sm btn-blue" onclick="autoDetectEdges(true)">✨ 自动框选</button>
+        <button class="btn btn-sm btn-gray" onclick="selectFullImage()">全图</button>
+        <button class="btn btn-sm btn-green" onclick="processPerspective()">确认拉正</button>
       </div>
     </div>
 
@@ -256,7 +260,7 @@
     priceEl.addEventListener('input', calculate);
     taxEl.addEventListener('input', calculate);
 
-    /* ========== 2. 离线文件扫描（四点透视拉正 + 滤镜 + 相册保存） ========== */
+    /* ========== 2. 智能离线文件扫描 ========== */
     const scanInput = document.getElementById('scanInput');
     const cropCanvas = document.getElementById('cropCanvas');
     const cropCtx = cropCanvas.getContext('2d');
@@ -265,11 +269,11 @@
 
     let rawImg = null;
     let displayScale = 1;
-    let corners = []; // 顺序：左上、右上、右下、左下 (基于原图坐标)
+    let corners = []; // 左上、右上、右下、左下 (基于原图坐标)
     let draggingIdx = -1;
-    let warpedRawData = null; // 拉正后的原始像素 ImageData
+    let warpedRawData = null;
 
-async function takePhotoForScan() {
+    async function takePhotoForScan() {
       try {
         if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Camera) {
           const { Camera } = window.Capacitor.Plugins;
@@ -279,15 +283,7 @@ async function takePhotoForScan() {
             resultType: 'dataUrl',
             source: 'CAMERA'
           });
-          const img = new Image();
-          img.onload = () => {
-            rawImg = img;
-            initCropCanvas();
-            document.getElementById('scan-step-upload').style.display = 'none';
-            document.getElementById('scan-step-result').style.display = 'none';
-            document.getElementById('scan-step-crop').style.display = 'block';
-          };
-          img.src = photo.dataUrl;
+          loadScanImage(photo.dataUrl);
         } else {
           document.getElementById('scanInput').click();
         }
@@ -297,39 +293,160 @@ async function takePhotoForScan() {
         }
       }
     }
+
     scanInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (!file) return;
       const reader = new FileReader();
-      reader.onload = (ev) => {
-        const img = new Image();
-        img.onload = () => {
-          rawImg = img;
-          initCropCanvas();
-          document.getElementById('scan-step-upload').style.display = 'none';
-          document.getElementById('scan-step-result').style.display = 'none';
-          document.getElementById('scan-step-crop').style.display = 'block';
-        };
-        img.src = ev.target.result;
-      };
+      reader.onload = (ev) => loadScanImage(ev.target.result);
       reader.readAsDataURL(file);
       scanInput.value = '';
     });
+
+    function loadScanImage(dataUrl) {
+      const img = new Image();
+      img.onload = () => {
+        rawImg = img;
+        initCropCanvas();
+        document.getElementById('scan-step-upload').style.display = 'none';
+        document.getElementById('scan-step-result').style.display = 'none';
+        document.getElementById('scan-step-crop').style.display = 'block';
+      };
+      img.src = dataUrl;
+    }
 
     function initCropCanvas() {
       const maxW = Math.min(window.innerWidth - 60, 600);
       displayScale = maxW / rawImg.width;
       cropCanvas.width = rawImg.width * displayScale;
       cropCanvas.height = rawImg.height * displayScale;
+      // 载入后自动运行智能文档边缘检测
+      autoDetectEdges(false);
+    }
 
-      // 默认内缩 12% 作为初始 4 个角点
-      const padX = rawImg.width * 0.12;
-      const padY = rawImg.height * 0.12;
+    /* 智能边缘检测算法：缩放降噪 + 梯度强边缘 + 极值四点拟合 */
+    function autoDetectEdges(isManualTrigger) {
+      const targetW = 240;
+      const scale = targetW / rawImg.width;
+      const w = targetW;
+      const h = Math.round(rawImg.height * scale);
+
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      const ctx = c.getContext('2d');
+      ctx.drawImage(rawImg, 0, 0, w, h);
+      const data = ctx.getImageData(0, 0, w, h).data;
+
+      // 1. 转灰度图 + 计算中心区域平均亮度（假定文档主体在画面中偏亮或与背景有对比）
+      const gray = new Float32Array(w * h);
+      let centerSum = 0, centerCnt = 0;
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const i = (y * w + x) * 4;
+          const g = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
+          gray[y * w + x] = g;
+          if (x > w * 0.3 && x < w * 0.7 && y > h * 0.3 && y < h * 0.7) {
+            centerSum += g; centerCnt++;
+          }
+        }
+      }
+      const centerAvg = centerSum / (centerCnt || 1);
+
+      // 2. 3x3 均值平滑去噪，避免桌面木纹/噪点干扰
+      const blur = new Float32Array(w * h);
+      for (let y = 1; y < h - 1; y++) {
+        for (let x = 1; x < w - 1; x++) {
+          let s = 0;
+          for (let dy = -1; dy <= 1; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+              s += gray[(y + dy) * w + (x + dx)];
+            }
+          }
+          blur[y * w + x] = s / 9;
+        }
+      }
+
+      // 3. Sobel 梯度提取强边缘 + 纸张亮度加权
+      const edgePts = [];
+      const pad = Math.round(Math.min(w, h) * 0.03);
+      for (let y = pad; y < h - pad; y++) {
+        for (let x = pad; x < w - pad; x++) {
+          const idx = y * w + x;
+          const gx = -blur[idx - w - 1] + blur[idx - w + 1] - 2 * blur[idx - 1] + 2 * blur[idx + 1] - blur[idx + w - 1] + blur[idx + w + 1];
+          const gy = -blur[idx - w - 1] - 2 * blur[idx - w] - blur[idx - w + 1] + blur[idx + w - 1] + 2 * blur[idx + w] + blur[idx + w + 1];
+          const mag = Math.hypot(gx, gy);
+
+          // 过滤弱纹理，保留高对比边界
+          if (mag > 65) {
+            // 如果中心偏亮（白纸），要求边缘点附近也有较亮区域
+            const localBright = Math.max(blur[idx], blur[idx - 2] || 0, blur[idx + 2] || 0, blur[idx - w * 2] || 0, blur[idx + w * 2] || 0);
+            if (centerAvg < 110 || localBright > centerAvg * 0.65) {
+              edgePts.push({ x, y });
+            }
+          }
+        }
+      }
+
+      // 4. 在外围边缘点中寻找四个极值角点（左上 x+y最小, 右下 x+y最大, 右上 x-y最大, 左下 y-x最大）
+      let fallback = false;
+      if (edgePts.length > 40) {
+        let tl = edgePts[0], br = edgePts[0], tr = edgePts[0], bl = edgePts[0];
+        let minSum = Infinity, maxSum = -Infinity, maxDiff = -Infinity, minDiff = Infinity;
+
+        for (const p of edgePts) {
+          const sum = p.x + p.y;
+          const diff = p.x - p.y;
+          if (sum < minSum) { minSum = sum; tl = p; }
+          if (sum > maxSum) { maxSum = sum; br = p; }
+          if (diff > maxDiff) { maxDiff = diff; tr = p; }
+          if (diff < minDiff) { minDiff = diff; bl = p; }
+        }
+
+        // 检验检测出的四边形面积是否合理（占画面 15% ~ 96%）
+        const area = 0.5 * Math.abs(
+          tl.x * tr.y + tr.x * br.y + br.x * bl.y + bl.x * tl.y -
+          (tr.x * tl.y + br.x * tr.y + bl.x * br.y + tl.x * bl.y)
+        );
+        const ratio = area / (w * h);
+
+        if (ratio > 0.15 && ratio < 0.96) {
+          corners = [
+            { x: tl.x / scale, y: tl.y / scale },
+            { x: tr.x / scale, y: tr.y / scale },
+            { x: br.x / scale, y: br.y / scale },
+            { x: bl.x / scale, y: bl.y / scale }
+          ];
+          document.getElementById('detectHint').textContent = '✨ 已自动吸附纸张四角（按住绿点拖动可用放大镜微调）';
+        } else {
+          fallback = true;
+        }
+      } else {
+        fallback = true;
+      }
+
+      if (fallback) {
+        const padX = rawImg.width * 0.1;
+        const padY = rawImg.height * 0.1;
+        corners = [
+          { x: padX, y: padY },
+          { x: rawImg.width - padX, y: padY },
+          { x: rawImg.width - padX, y: rawImg.height - padY },
+          { x: padX, y: rawImg.height - padY }
+        ];
+        document.getElementById('detectHint').textContent = isManualTrigger
+          ? '背景对比度较低，请手动拖动 4 个绿点对齐纸角'
+          : '请拖动 4 个绿色圆点对准纸张四角（支持放大镜微调）';
+      }
+
+      drawCropUI();
+    }
+
+    function selectFullImage() {
       corners = [
-        { x: padX, y: padY },
-        { x: rawImg.width - padX, y: padY },
-        { x: rawImg.width - padX, y: rawImg.height - padY },
-        { x: padX, y: rawImg.height - padY }
+        { x: 0, y: 0 },
+        { x: rawImg.width, y: 0 },
+        { x: rawImg.width, y: rawImg.height },
+        { x: 0, y: rawImg.height }
       ];
       drawCropUI();
     }
@@ -338,11 +455,11 @@ async function takePhotoForScan() {
       cropCtx.clearRect(0, 0, cropCanvas.width, cropCanvas.height);
       cropCtx.drawImage(rawImg, 0, 0, cropCanvas.width, cropCanvas.height);
 
-      // 半透明暗色遮罩
+      // 遮罩层
       cropCtx.fillStyle = 'rgba(0, 0, 0, 0.45)';
       cropCtx.fillRect(0, 0, cropCanvas.width, cropCanvas.height);
 
-      // 挖出选区原图亮度并画边框
+      // 挖出选区高亮
       cropCtx.save();
       cropCtx.beginPath();
       corners.forEach((p, i) => {
@@ -367,11 +484,11 @@ async function takePhotoForScan() {
       cropCtx.closePath();
       cropCtx.stroke();
 
-      // 4 个大号可触摸圆点
+      // 4 个触摸圆点
       corners.forEach((p) => {
         const sx = p.x * displayScale, sy = p.y * displayScale;
         cropCtx.beginPath();
-        cropCtx.arc(sx, sy, 13, 0, Math.PI * 2);
+        cropCtx.arc(sx, sy, 14, 0, Math.PI * 2);
         cropCtx.fillStyle = 'rgba(105, 240, 174, 0.35)';
         cropCtx.fill();
 
@@ -383,6 +500,49 @@ async function takePhotoForScan() {
         cropCtx.lineWidth = 1.5;
         cropCtx.stroke();
       });
+
+      // 手指拖动时，在左上角或右上角显示 2.5x 十字放大镜，防止手指遮挡视线
+      if (draggingIdx !== -1) {
+        const activePt = corners[draggingIdx];
+        const magRadius = 46;
+        // 如果手指在左边，放大镜放右上角；反之放左上角
+        const magX = (activePt.x * displayScale < cropCanvas.width / 2)
+          ? cropCanvas.width - magRadius - 12
+          : magRadius + 12;
+        const magY = magRadius + 12;
+
+        cropCtx.save();
+        cropCtx.beginPath();
+        cropCtx.arc(magX, magY, magRadius, 0, Math.PI * 2);
+        cropCtx.clip();
+
+        cropCtx.fillStyle = '#000';
+        cropCtx.fillRect(magX - magRadius, magY - magRadius, magRadius * 2, magRadius * 2);
+
+        const zoom = 2.2;
+        const srcSize = (magRadius * 2) / zoom / displayScale;
+        cropCtx.drawImage(
+          rawImg,
+          activePt.x - srcSize / 2, activePt.y - srcSize / 2, srcSize, srcSize,
+          magX - magRadius, magY - magRadius, magRadius * 2, magRadius * 2
+        );
+
+        // 十字准星
+        cropCtx.strokeStyle = '#69f0ae';
+        cropCtx.lineWidth = 1.5;
+        cropCtx.beginPath();
+        cropCtx.moveTo(magX - 14, magY); cropCtx.lineTo(magX + 14, magY);
+        cropCtx.moveTo(magX, magY - 14); cropCtx.lineTo(magX, magY + 14);
+        cropCtx.stroke();
+        cropCtx.restore();
+
+        // 放大镜外圈白边
+        cropCtx.beginPath();
+        cropCtx.arc(magX, magY, magRadius, 0, Math.PI * 2);
+        cropCtx.strokeStyle = '#69f0ae';
+        cropCtx.lineWidth = 3;
+        cropCtx.stroke();
+      }
     }
 
     function getPointerPos(e) {
@@ -397,13 +557,14 @@ async function takePhotoForScan() {
 
     function onPointerDown(e) {
       const pos = getPointerPos(e);
-      const hitRadius = 35 / displayScale;
+      const hitRadius = 42 / displayScale;
       let minDist = hitRadius;
       draggingIdx = -1;
       corners.forEach((p, idx) => {
         const d = Math.hypot(p.x - pos.x, p.y - pos.y);
         if (d < minDist) { minDist = d; draggingIdx = idx; }
       });
+      if (draggingIdx !== -1) drawCropUI();
     }
 
     function onPointerMove(e) {
@@ -415,7 +576,12 @@ async function takePhotoForScan() {
       drawCropUI();
     }
 
-    function onPointerUp() { draggingIdx = -1; }
+    function onPointerUp() {
+      if (draggingIdx !== -1) {
+        draggingIdx = -1;
+        drawCropUI();
+      }
+    }
 
     cropCanvas.addEventListener('touchstart', onPointerDown, { passive: false });
     cropCanvas.addEventListener('touchmove', onPointerMove, { passive: false });
@@ -424,7 +590,6 @@ async function takePhotoForScan() {
     window.addEventListener('mousemove', onPointerMove);
     window.addEventListener('mouseup', onPointerUp);
 
-    // 求解 3x3 透视单应性矩阵 (目标矩形 -> 原图四边形逆映射)
     function computeHomography(srcPts, dstPts) {
       const A = [];
       for (let i = 0; i < 4; i++) {
@@ -433,7 +598,6 @@ async function takePhotoForScan() {
         A.push([sx, sy, 1, 0, 0, 0, -dx * sx, -dx * sy, dx]);
         A.push([0, 0, 0, sx, sy, 1, -dy * sx, -dy * sy, dy]);
       }
-      // 高斯消元
       const n = 8;
       for (let i = 0; i < n; i++) {
         let maxRow = i;
@@ -457,7 +621,6 @@ async function takePhotoForScan() {
     }
 
     function processPerspective() {
-      // 计算输出尺寸（限制最长边 1800px，兼顾清晰度与手机内存速度）
       const topW = Math.hypot(corners[1].x - corners[0].x, corners[1].y - corners[0].y);
       const botW = Math.hypot(corners[2].x - corners[3].x, corners[2].y - corners[3].y);
       const leftH = Math.hypot(corners[3].x - corners[0].x, corners[3].y - corners[0].y);
@@ -472,7 +635,6 @@ async function takePhotoForScan() {
         outH = Math.round(outH * s);
       }
 
-      // 读出原图像素
       const offCanvas = document.createElement('canvas');
       offCanvas.width = rawImg.width;
       offCanvas.height = rawImg.height;
@@ -487,7 +649,6 @@ async function takePhotoForScan() {
         { x: outW, y: outH },
         { x: 0, y: outH }
       ];
-      // 计算从目标矩形坐标反查原图坐标的变换矩阵
       const H = computeHomography(dstRect, corners);
 
       resultCanvas.width = outW;
@@ -505,7 +666,6 @@ async function takePhotoForScan() {
           const dstIdx = (y * outW + x) * 4;
 
           if (x0 >= 0 && x0 < srcW - 1 && y0 >= 0 && y0 < srcH - 1) {
-            // 双线性插值让文字边缘平滑不锯齿
             const dx = sx - x0, dy = sy - y0;
             const w00 = (1 - dx) * (1 - dy);
             const w10 = dx * (1 - dy);
@@ -549,13 +709,11 @@ async function takePhotoForScan() {
         if (type === 'orig') {
           dst[i] = src[i]; dst[i+1] = src[i+1]; dst[i+2] = src[i+2]; dst[i+3] = 255;
         } else if (type === 'enhance') {
-          // 提亮白底、压深字迹，保留轻微色彩
           const r = Math.min(255, Math.max(0, (src[i] - 40) * 1.45));
           const g = Math.min(255, Math.max(0, (src[i+1] - 40) * 1.45));
           const b = Math.min(255, Math.max(0, (src[i+2] - 40) * 1.45));
           dst[i] = r; dst[i+1] = g; dst[i+2] = b; dst[i+3] = 255;
         } else if (type === 'bw') {
-          // 高对比黑白文档模式
           const gray = 0.299 * src[i] + 0.587 * src[i+1] + 0.114 * src[i+2];
           const val = gray > 135 ? 255 : Math.max(0, (gray - 30) * 1.2);
           dst[i] = dst[i+1] = dst[i+2] = val; dst[i+3] = 255;
@@ -588,23 +746,24 @@ async function takePhotoForScan() {
           const base64Data = dataUrl.split(',')[1];
           const { Filesystem, Media, Share } = window.Capacitor.Plugins;
 
-          // 先写入临时文件
           const savedFile = await Filesystem.writeFile({
             path: fileName,
             data: base64Data,
             directory: 'CACHE'
           });
 
-          // 优先调用 Media 插件直接存入系统相册
-          if (Media && Media.savePhoto) {
-            await Media.savePhoto({ path: savedFile.uri });
-            alert('已成功存入手机相册！');
-          } else {
-            // 兜底调起系统分享/保存面板
+          try {
+            if (Media && Media.savePhoto) {
+              await Media.savePhoto({ path: savedFile.uri });
+              alert('已成功存入手机相册！');
+            } else {
+              await Share.share({ title: fileName, url: savedFile.uri });
+            }
+          } catch (mediaErr) {
+            // 如果系统限制相册直写权限，自动降级唤起系统保存/分享面板
             await Share.share({ title: fileName, url: savedFile.uri });
           }
         } else {
-          // 电脑浏览器测试直接下载
           const a = document.createElement('a');
           a.href = dataUrl;
           a.download = fileName;
