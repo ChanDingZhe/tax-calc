@@ -28,9 +28,14 @@ jobs:
           npx cap init "日常百宝箱" "com.yozor.toolbox" --web-dir www
           npx cap add android
           npx cap sync
-          python3 -c '
-          p = "android/app/src/main/AndroidManifest.xml"
-          s = open(p).read()
+
+          # 1. 注入权限与确定性固定签名（保证每次打包签名完全一致，直接原地覆盖更新不卸载）
+          python3 - << 'EOF'
+          import os, subprocess
+
+          # 写入权限
+          manifest_path = "android/app/src/main/AndroidManifest.xml"
+          s = open(manifest_path).read()
           perms = """
               <uses-permission android:name="android.permission.CAMERA" />
               <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
@@ -39,8 +44,139 @@ jobs:
               <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
               <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
           """
-          open(p, "w").write(s.replace("</manifest>", perms + "\n</manifest>"))
-          '
+          open(manifest_path, "w").write(s.replace("</manifest>", perms + "\n</manifest>"))
+
+          # 注入原生 Android 系统目录选择器 (SAF ACTION_OPEN_DOCUMENT_TREE)
+          main_act = "android/app/src/main/java/com/yozor/toolbox/MainActivity.java"
+          java_code = '''package com.yozor.toolbox;
+
+          import android.app.Activity;
+          import android.content.Intent;
+          import android.net.Uri;
+          import android.os.Bundle;
+          import android.util.Base64;
+          import android.webkit.JavascriptInterface;
+          import android.webkit.WebView;
+          import androidx.documentfile.provider.DocumentFile;
+          import com.getcapacitor.BridgeActivity;
+          import java.io.OutputStream;
+          import java.net.URLDecoder;
+
+          public class MainActivity extends BridgeActivity {
+              private static final int REQ_PICK_DIR = 9527;
+
+              @Override
+              public void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  WebView webView = getBridge().getWebView();
+                  webView.addJavascriptInterface(new NativeSafBridge(), "NativeSAF");
+              }
+
+              @Override
+              protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+                  super.onActivityResult(requestCode, resultCode, data);
+                  if (requestCode == REQ_PICK_DIR && resultCode == Activity.RESULT_OK && data != null) {
+                      Uri treeUri = data.getData();
+                      if (treeUri != null) {
+                          final int takeFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION;
+                          try {
+                              getContentResolver().takePersistableUriPermission(treeUri, takeFlags);
+                          } catch (Exception ignored) {}
+
+                          String readablePath = parseReadablePath(treeUri);
+                          String js = String.format("window.onNativeDirPicked && window.onNativeDirPicked(%s, %s);",
+                              org.json.JSONObject.quote(treeUri.toString()),
+                              org.json.JSONObject.quote(readablePath));
+                          getBridge().getWebView().post(() -> getBridge().getWebView().evaluateJavascript(js, null));
+                      }
+                  }
+              }
+
+              private String parseReadablePath(Uri treeUri) {
+                  try {
+                      String decoded = URLDecoder.decode(treeUri.toString(), "UTF-8");
+                      int idx = decoded.lastIndexOf("/tree/");
+                      if (idx != -1) {
+                          String docId = decoded.substring(idx + 6);
+                          if (docId.startsWith("primary:")) {
+                              return "/storage/emulated/0/" + docId.substring(8);
+                          }
+                          return docId;
+                      }
+                  } catch (Exception ignored) {}
+                  return treeUri.getLastPathSegment();
+              }
+
+              public class NativeSafBridge {
+                  @JavascriptInterface
+                  public void pickDirectory() {
+                      Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+                      intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
+                          | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                          | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+                      startActivityForResult(intent, REQ_PICK_DIR);
+                  }
+
+                  @JavascriptInterface
+                  public String writeFileToTree(String treeUriStr, String fileName, String mimeType, String base64Data) {
+                      try {
+                          Uri treeUri = Uri.parse(treeUriStr);
+                          DocumentFile pickedDir = DocumentFile.fromTreeUri(MainActivity.this, treeUri);
+                          if (pickedDir == null || !pickedDir.canWrite()) {
+                              return "ERR:无写入权限，请重新选择文件夹";
+                          }
+                          DocumentFile existing = pickedDir.findFile(fileName);
+                          if (existing != null) existing.delete();
+
+                          DocumentFile newFile = pickedDir.createFile(mimeType, fileName);
+                          if (newFile == null) {
+                              return "ERR:创建文件失败";
+                          }
+                          byte[] bytes = Base64.decode(base64Data, Base64.DEFAULT);
+                          try (OutputStream out = getContentResolver().openOutputStream(newFile.getUri())) {
+                              out.write(bytes);
+                              out.flush();
+                          }
+                          return "OK:" + parseReadablePath(treeUri) + "/" + fileName;
+                      } catch (Exception e) {
+                          return "ERR:" + e.getMessage();
+                      }
+                  }
+              }
+          }
+          '''
+          open(main_act, "w").write(java_code)
+          EOF
+
+          # 2. 使用仓库中固定的 keystore（若首次运行则创建，并配置 build.gradle 固定签名 + 递增 versionCode）
+          if [ ! -f "toolbox-release.keystore" ]; then
+            keytool -genkeypair -v -keystore toolbox-release.keystore -alias toolbox \
+              -keyalg RSA -keysize 2048 -validity 36500 \
+              -storepass yozor123456 -keypass yozor123456 \
+              -dname "CN=Yozor, OU=Dev, O=Personal, L=JB, S=Johor, C=MY"
+          fi
+
+          python3 - << 'EOF'
+          gradle_path = "android/app/build.gradle"
+          g = open(gradle_path).read()
+          g = g.replace("versionCode 1", f"versionCode {int('${{ github.run_number }}') + 10}")
+          signing_cfg = """
+              signingConfigs {
+                  release {
+                      storeFile file("../../toolbox-release.keystore")
+                      storePassword "yozor123456"
+                      keyAlias "toolbox"
+                      keyPassword "yozor123456"
+                  }
+              }
+          """
+          g = g.replace("buildTypes {", signing_cfg + "\n    buildTypes {\n        debug { signingConfig signingConfigs.release }")
+          open(gradle_path, "w").write(g)
+          EOF
+
+          # 3. 确保 documentfile 依赖存在
+          echo "dependencies { implementation 'androidx.documentfile:documentfile:1.0.1' }" >> android/app/build.gradle
+
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug
