@@ -1,0 +1,16 @@
+*.keystore
+*.jks
+*.p12
+node_modules/
+dist/
+build/
+android/app/build/
+android/.gradle/
+android/build/
+.gradle/
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.bak
+*.log
