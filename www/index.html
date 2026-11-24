@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>含税计算器</title>
+  <style>
+    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { margin: 0; padding: 24px 20px; background: #121212; color: #f5f5f5; display: flex; flex-direction: column; min-height: 100vh; }
+    h2 { margin: 0 0 20px; font-size: 20px; font-weight: 600; color: #e0e0e0; }
+    .card { background: #1e1e1e; border-radius: 16px; padding: 20px; margin-bottom: 16px; border: 1px solid #2c2c2c; }
+    label { display: block; font-size: 13px; color: #9e9e9e; margin-bottom: 8px; }
+    .input-row { display: flex; align-items: center; border-bottom: 2px solid #3a3a3a; padding-bottom: 6px; }
+    .input-row:focus-within { border-color: #4caf50; }
+    .prefix { font-size: 24px; font-weight: 600; color: #888; margin-right: 8px; }
+    input { width: 100%; background: transparent; border: none; outline: none; color: #fff; font-size: 32px; font-weight: 700; }
+    .presets { display: flex; gap: 8px; margin-top: 12px; }
+    .presets button { flex: 1; padding: 10px 0; border-radius: 8px; border: 1px solid #333; background: #282828; color: #ddd; font-size: 13px; font-weight: 600; }
+    .presets button:active { background: #4caf50; color: #000; }
+    .result-box { background: linear-gradient(135deg, #1b3a24, #16291c); border: 1px solid #2e6b3e; border-radius: 16px; padding: 22px 20px; }
+    .total-label { font-size: 14px; color: #a5d6a7; }
+    .total-val { font-size: 42px; font-weight: 800; color: #69f0ae; margin: 6px 0 12px; }
+    .detail-row { display: flex; justify-content: space-between; font-size: 14px; color: #c8e6c9; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.1); }
+    .clear-btn { margin-top: 16px; width: 100%; padding: 14px; border-radius: 12px; border: none; background: #2c2c2c; color: #ccc; font-size: 16px; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <h2>餐饮含税计算器</h2>
+
+  <div class="card">
+    <label>食物价钱 (Price)</label>
+    <div class="input-row">
+      <span class="prefix">RM</span>
+      <input id="price" type="number" inputmode="decimal" step="0.01" placeholder="0.00" autofocus />
+    </div>
+  </div>
+
+  <div class="card">
+    <label>税率 (Tax %)</label>
+    <div class="input-row">
+      <input id="tax" type="number" inputmode="decimal" step="0.1" value="16" />
+      <span class="prefix">%</span>
+    </div>
+    <div class="presets">
+      <button onclick="setTax(16)">16%</button>
+      <button onclick="setTax(6)">6%</button>
+      <button onclick="setTax(10)">10%</button>
+      <button onclick="setTax(0)">0%</button>
+    </div>
+  </div>
+
+  <div class="result-box">
+    <div class="total-label">实际应付总额</div>
+    <div class="total-val" id="total">RM 0.00</div>
+    <div class="detail-row">
+      <span>税额: <strong id="taxAmt">RM 0.00</strong></span>
+      <span>现金凑整: <strong id="cashRound">RM 0.00</strong></span>
+    </div>
+  </div>
+
+  <button class="clear-btn" onclick="clearPrice()">清空价钱</button>
+
+  <script>
+    const priceEl = document.getElementById('price');
+    const taxEl = document.getElementById('tax');
+    const totalEl = document.getElementById('total');
+    const taxAmtEl = document.getElementById('taxAmt');
+    const cashRoundEl = document.getElementById('cashRound');
+
+    const savedTax = localStorage.getItem('saved_tax_rate');
+    if (savedTax !== null) taxEl.value = savedTax;
+
+    function calculate() {
+      const price = parseFloat(priceEl.value) || 0;
+      const taxRate = parseFloat(taxEl.value) || 0;
+      localStorage.setItem('saved_tax_rate', taxEl.value);
+
+      const priceCents = Math.round(price * 100);
+      const taxCents = Math.round(priceCents * (taxRate / 100));
+      const total = (priceCents + taxCents) / 100;
+
+      totalEl.textContent = 'RM ' + total.toFixed(2);
+      taxAmtEl.textContent = 'RM ' + (taxCents / 100).toFixed(2);
+      cashRoundEl.textContent = 'RM ' + (Math.round(total * 20) / 20).toFixed(2);
+    }
+
+    function setTax(val) {
+      taxEl.value = val;
+      calculate();
+      priceEl.focus();
+    }
+
+    function clearPrice() {
+      priceEl.value = '';
+      calculate();
+      priceEl.focus();
+    }
+
+    priceEl.addEventListener('input', calculate);
+    taxEl.addEventListener('input', calculate);
+  </script>
+</body>
+</html>
