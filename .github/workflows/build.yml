@@ -25,7 +25,7 @@ jobs:
       - name: Install & Build Android Project
         run: |
           npm install
-          npx cap init "TaxCalc" "com.yozor.taxcalc" --web-dir www
+          npx cap init "税务总和" "com.yozor.taxcalc" --web-dir www
           npx cap add android
           npx cap sync
           cd android
