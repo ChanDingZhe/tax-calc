@@ -28,7 +28,67 @@
       width: 100%; background: transparent; border: none; outline: none;
       color: #fff; font-size: 28px; font-weight: 700;
     }
-    input[type="text"] { font-size: 17px; font-weight: 500; }
+    input[type="text"] { font-size: 16px; font-weight: 500; }
+
+    /* 保存路径选择栏 */
+    .path-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      background: #18241c; border: 1px solid #2b4c35; border-radius: 12px;
+      padding: 11px 14px; margin-bottom: 14px; cursor: pointer;
+    }
+    .path-bar-left { overflow: hidden; padding-right: 8px; }
+    .path-bar-title { font-size: 11px; color: #81c784; margin-bottom: 3px; }
+    .path-bar-val {
+      font-size: 14px; font-weight: 600; color: #fff;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .path-bar-btn {
+      background: #2e6b3e; color: #a5d6a7; border: none; border-radius: 8px;
+      padding: 6px 10px; font-size: 12px; font-weight: 600; flex-shrink: 0;
+    }
+
+    /* 路径选择弹窗 */
+    .modal-mask {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+      z-index: 200; align-items: flex-end; justify-content: center;
+    }
+    .modal-mask.show { display: flex; }
+    .modal-sheet {
+      width: 100%; max-width: 540px; background: #1c1c1c;
+      border-top-left-radius: 20px; border-top-right-radius: 20px;
+      padding: 20px 16px 28px; border-top: 1px solid #333;
+      max-height: 82vh; overflow-y: auto;
+    }
+    .modal-header {
+      display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;
+    }
+    .modal-header h3 { margin: 0; font-size: 17px; color: #fff; }
+    .modal-close {
+      background: #2c2c2c; color: #aaa; border: none; border-radius: 50%;
+      width: 30px; height: 30px; font-size: 16px;
+    }
+    .new-path-box {
+      display: flex; gap: 8px; margin-bottom: 16px; background: #262626;
+      padding: 8px 10px; border-radius: 12px; border: 1px solid #383838;
+    }
+    .new-path-box input { font-size: 14px; }
+    .new-path-box button {
+      background: #4caf50; color: #000; border: none; border-radius: 8px;
+      padding: 8px 14px; font-size: 13px; font-weight: 700; flex-shrink: 0;
+    }
+    .history-list { display: flex; flex-direction: column; gap: 8px; }
+    .history-item {
+      display: flex; align-items: center; justify-content: space-between;
+      background: #252525; padding: 12px 14px; border-radius: 12px;
+      border: 1px solid transparent;
+    }
+    .history-item.selected { background: #1b3a24; border-color: #4caf50; }
+    .history-item-info { flex: 1; overflow: hidden; padding-right: 10px; }
+    .history-item-name { font-size: 14px; font-weight: 600; color: #fff; word-break: break-all; }
+    .history-item-sub { font-size: 11px; color: #888; margin-top: 3px; }
+    .history-del {
+      background: transparent; border: none; color: #777; font-size: 16px; padding: 4px 8px;
+    }
 
     /* 算税样式 */
     .presets { display: flex; gap: 8px; margin-top: 12px; }
@@ -85,7 +145,7 @@
       position: relative; width: 100%; display: flex; justify-content: center;
       background: #0a0a0a; border-radius: 12px; overflow: hidden; touch-action: none;
     }
-    #cropCanvas, #resultCanvas { max-width: 100%; max-height: 60vh; display: block; }
+    #cropCanvas, #resultCanvas { max-width: 100%; max-height: 56vh; display: block; }
     .filter-bar { display: flex; gap: 8px; margin-top: 12px; }
     .hint-text { font-size: 12px; color: #9e9e9e; text-align: center; margin-top: 8px; }
 
@@ -143,6 +203,15 @@
   <div id="page-scan" class="page">
     <h2>离线文件扫描</h2>
 
+    <!-- 全局保存路径选择条 -->
+    <div class="path-bar" onclick="openPathModal()">
+      <div class="path-bar-left">
+        <div class="path-bar-title">📂 当前保存位置 (Documents/)</div>
+        <div class="path-bar-val" id="scanPathDisplay">日常百宝箱/默认</div>
+      </div>
+      <button class="path-bar-btn">选择 Path</button>
+    </div>
+
     <!-- 步骤 1：选择或拍摄照片 -->
     <div id="scan-step-upload" class="card">
       <input id="scanInput" type="file" accept="image/*" style="display:none" />
@@ -152,7 +221,7 @@
       <button class="btn btn-gray" onclick="document.getElementById('scanInput').click()">
         🖼️ 从相册选择照片
       </button>
-      <div class="hint-text" style="margin-top:12px;">自动识别纸张边缘 · 拖动带十字放大镜微调 · 一键存相册</div>
+      <div class="hint-text" style="margin-top:12px;">自动识别纸张边缘 · 拖动十字放大镜微调 · 存入指定文件夹</div>
     </div>
 
     <!-- 步骤 2：智能框选 + 拖动十字放大镜微调 -->
@@ -169,7 +238,7 @@
       </div>
     </div>
 
-    <!-- 步骤 3：预览滤镜并存入相册 -->
+    <!-- 步骤 3：预览滤镜并存入指定路径 -->
     <div id="scan-step-result" class="card" style="display:none">
       <div class="canvas-wrap">
         <canvas id="resultCanvas"></canvas>
@@ -181,7 +250,7 @@
       </div>
       <div class="btn-row">
         <button class="btn btn-gray" onclick="backToCrop()">重新调角</button>
-        <button id="saveAlbumBtn" class="btn btn-green" onclick="saveScanToAlbum()">存入相册</button>
+        <button id="saveScanBtn" class="btn btn-green" onclick="saveScanFile()">存入文件夹</button>
       </div>
     </div>
   </div>
@@ -189,6 +258,16 @@
   <!-- 页面 3：照片转 PDF -->
   <div id="page-pdf" class="page">
     <h2>照片转 PDF</h2>
+
+    <!-- 全局保存路径选择条 -->
+    <div class="path-bar" onclick="openPathModal()">
+      <div class="path-bar-left">
+        <div class="path-bar-title">📂 当前保存位置 (Documents/)</div>
+        <div class="path-bar-val" id="pdfPathDisplay">日常百宝箱/默认</div>
+      </div>
+      <button class="path-bar-btn">选择 Path</button>
+    </div>
+
     <div class="card">
       <label>PDF 文件名</label>
       <div class="input-row">
@@ -203,8 +282,27 @@
       </div>
       <div id="imgList" class="img-list"></div>
     </div>
-    <button id="genPdfBtn" class="btn btn-green" onclick="generatePDF()" disabled>生成并保存 PDF (0 张)</button>
+    <button id="genPdfBtn" class="btn btn-green" onclick="generatePDF()" disabled>生成并存入文件夹 (0 张)</button>
     <button class="btn btn-gray" onclick="clearImages()">清空所有照片</button>
+  </div>
+
+  <!-- 路径管理弹窗（记录所有历史保存文件夹 + 新建路径） -->
+  <div id="pathModal" class="modal-mask" onclick="if(event.target===this) closePathModal()">
+    <div class="modal-sheet">
+      <div class="modal-header">
+        <h3>选择或新建保存文件夹</h3>
+        <button class="modal-close" onclick="closePathModal()">✕</button>
+      </div>
+      <div class="hint-text" style="text-align:left; margin:0 0 10px;">
+        文件将保存在手机内部存储的 <strong>Documents/</strong> 目录下（支持多级目录，例如 <code>学习/笔记</code>）
+      </div>
+      <div class="new-path-box">
+        <input id="newPathInput" type="text" placeholder="输入新文件夹路径，如: 报销单据" />
+        <button onclick="addNewPath()">新建并使用</button>
+      </div>
+      <label>历史保存位置记录（点击切换）</label>
+      <div id="pathHistoryList" class="history-list"></div>
+    </div>
   </div>
 
   <!-- 底部导航栏 -->
@@ -224,6 +322,136 @@
   </div>
 
   <script>
+    /* ========== 全局保存路径管理（自动记忆历史路径） ========== */
+    const DEFAULT_PATHS = ['日常百宝箱/默认', '日常百宝箱/扫描文档', '日常百宝箱/PDF文件'];
+    let currentSavePath = localStorage.getItem('toolbox_current_path') || '日常百宝箱/默认';
+    let pathHistory = [];
+    try {
+      pathHistory = JSON.parse(localStorage.getItem('toolbox_path_history')) || [];
+    } catch (e) { pathHistory = []; }
+    if (pathHistory.length === 0) {
+      pathHistory = DEFAULT_PATHS.map(p => ({ path: p, count: 0, lastUsed: '预设目录' }));
+    }
+
+    function normalizePath(raw) {
+      return raw.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '').replace(/\/{2,}/g, '/').trim();
+    }
+
+    function syncPathUI() {
+      document.getElementById('scanPathDisplay').textContent = currentSavePath;
+      document.getElementById('pdfPathDisplay').textContent = currentSavePath;
+      localStorage.setItem('toolbox_current_path', currentSavePath);
+      localStorage.setItem('toolbox_path_history', JSON.stringify(pathHistory));
+    }
+
+    function recordPathUsage(targetPath) {
+      const clean = normalizePath(targetPath) || '日常百宝箱/默认';
+      const now = new Date();
+      const timeStr = `${now.getMonth()+1}/${now.getDate()} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+      const existingIdx = pathHistory.findIndex(item => item.path === clean);
+
+      if (existingIdx !== -1) {
+        const item = pathHistory.splice(existingIdx, 1)[0];
+        item.count = (item.count || 0) + 1;
+        item.lastUsed = `最近保存: ${timeStr}`;
+        pathHistory.unshift(item); // 置顶最近使用的目录
+      } else {
+        pathHistory.unshift({ path: clean, count: 1, lastUsed: `最近保存: ${timeStr}` });
+      }
+      currentSavePath = clean;
+      syncPathUI();
+    }
+
+    function openPathModal() {
+      renderPathHistory();
+      document.getElementById('pathModal').classList.add('show');
+    }
+
+    function closePathModal() {
+      document.getElementById('pathModal').classList.remove('show');
+    }
+
+    function selectPath(p) {
+      currentSavePath = p;
+      syncPathUI();
+      closePathModal();
+    }
+
+    function addNewPath() {
+      const input = document.getElementById('newPathInput');
+      const clean = normalizePath(input.value);
+      if (!clean) {
+        alert('请输入文件夹名称');
+        return;
+      }
+      const existingIdx = pathHistory.findIndex(item => item.path === clean);
+      if (existingIdx === -1) {
+        pathHistory.unshift({ path: clean, count: 0, lastUsed: '新建目录' });
+      }
+      currentSavePath = clean;
+      input.value = '';
+      syncPathUI();
+      closePathModal();
+    }
+
+    function deleteHistoryPath(e, idx) {
+      e.stopPropagation();
+      if (pathHistory.length <= 1) {
+        alert('至少保留一个保存目录');
+        return;
+      }
+      const removed = pathHistory.splice(idx, 1)[0];
+      if (removed.path === currentSavePath) {
+        currentSavePath = pathHistory[0].path;
+      }
+      syncPathUI();
+      renderPathHistory();
+    }
+
+    function renderPathHistory() {
+      const listEl = document.getElementById('pathHistoryList');
+      listEl.innerHTML = '';
+      pathHistory.forEach((item, idx) => {
+        const div = document.createElement('div');
+        div.className = 'history-item' + (item.path === currentSavePath ? ' selected' : '');
+        div.onclick = () => selectPath(item.path);
+        div.innerHTML = `
+          <div class="history-item-info">
+            <div class="history-item-name">📁 Documents/${item.path}</div>
+            <div class="history-item-sub">${item.lastUsed} · 已存 ${item.count || 0} 次</div>
+          </div>
+          <button class="history-del" onclick="deleteHistoryPath(event, ${idx})">✕</button>
+        `;
+        listEl.appendChild(div);
+      });
+    }
+
+    // 初始化显示保存路径
+    syncPathUI();
+
+    /* 统一写入指定 Documents 子文件夹的核心方法 */
+    async function saveBase64ToSelectedFolder(fileName, base64Data) {
+      const folder = normalizePath(currentSavePath) || '日常百宝箱/默认';
+      const fullRelativePath = `${folder}/${fileName}`;
+
+      if (window.Capacitor && window.Capacitor.isNativePlatform()) {
+        const { Filesystem } = window.Capacitor.Plugins;
+        // recursive: true 会自动创建不存在的多级子文件夹
+        const res = await Filesystem.writeFile({
+          path: fullRelativePath,
+          data: base64Data,
+          directory: 'DOCUMENTS',
+          recursive: true
+        });
+        recordPathUsage(folder);
+        return { displayPath: `Documents/${fullRelativePath}`, uri: res.uri };
+      } else {
+        // 电脑浏览器调试环境降级下载
+        recordPathUsage(folder);
+        return { displayPath: `Documents/${fullRelativePath}`, uri: null };
+      }
+    }
+
     /* ========== 底部导航切换 ========== */
     function switchTab(tabName, el) {
       document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -269,7 +497,7 @@
 
     let rawImg = null;
     let displayScale = 1;
-    let corners = []; // 左上、右上、右下、左下 (基于原图坐标)
+    let corners = [];
     let draggingIdx = -1;
     let warpedRawData = null;
 
@@ -320,11 +548,9 @@
       displayScale = maxW / rawImg.width;
       cropCanvas.width = rawImg.width * displayScale;
       cropCanvas.height = rawImg.height * displayScale;
-      // 载入后自动运行智能文档边缘检测
       autoDetectEdges(false);
     }
 
-    /* 智能边缘检测算法：缩放降噪 + 梯度强边缘 + 极值四点拟合 */
     function autoDetectEdges(isManualTrigger) {
       const targetW = 240;
       const scale = targetW / rawImg.width;
@@ -337,7 +563,6 @@
       ctx.drawImage(rawImg, 0, 0, w, h);
       const data = ctx.getImageData(0, 0, w, h).data;
 
-      // 1. 转灰度图 + 计算中心区域平均亮度（假定文档主体在画面中偏亮或与背景有对比）
       const gray = new Float32Array(w * h);
       let centerSum = 0, centerCnt = 0;
       for (let y = 0; y < h; y++) {
@@ -352,21 +577,17 @@
       }
       const centerAvg = centerSum / (centerCnt || 1);
 
-      // 2. 3x3 均值平滑去噪，避免桌面木纹/噪点干扰
       const blur = new Float32Array(w * h);
       for (let y = 1; y < h - 1; y++) {
         for (let x = 1; x < w - 1; x++) {
           let s = 0;
           for (let dy = -1; dy <= 1; dy++) {
-            for (let dx = -1; dx <= 1; dx++) {
-              s += gray[(y + dy) * w + (x + dx)];
-            }
+            for (let dx = -1; dx <= 1; dx++) s += gray[(y + dy) * w + (x + dx)];
           }
           blur[y * w + x] = s / 9;
         }
       }
 
-      // 3. Sobel 梯度提取强边缘 + 纸张亮度加权
       const edgePts = [];
       const pad = Math.round(Math.min(w, h) * 0.03);
       for (let y = pad; y < h - pad; y++) {
@@ -376,9 +597,7 @@
           const gy = -blur[idx - w - 1] - 2 * blur[idx - w] - blur[idx - w + 1] + blur[idx + w - 1] + 2 * blur[idx + w] + blur[idx + w + 1];
           const mag = Math.hypot(gx, gy);
 
-          // 过滤弱纹理，保留高对比边界
           if (mag > 65) {
-            // 如果中心偏亮（白纸），要求边缘点附近也有较亮区域
             const localBright = Math.max(blur[idx], blur[idx - 2] || 0, blur[idx + 2] || 0, blur[idx - w * 2] || 0, blur[idx + w * 2] || 0);
             if (centerAvg < 110 || localBright > centerAvg * 0.65) {
               edgePts.push({ x, y });
@@ -387,7 +606,6 @@
         }
       }
 
-      // 4. 在外围边缘点中寻找四个极值角点（左上 x+y最小, 右下 x+y最大, 右上 x-y最大, 左下 y-x最大）
       let fallback = false;
       if (edgePts.length > 40) {
         let tl = edgePts[0], br = edgePts[0], tr = edgePts[0], bl = edgePts[0];
@@ -402,7 +620,6 @@
           if (diff < minDiff) { minDiff = diff; bl = p; }
         }
 
-        // 检验检测出的四边形面积是否合理（占画面 15% ~ 96%）
         const area = 0.5 * Math.abs(
           tl.x * tr.y + tr.x * br.y + br.x * bl.y + bl.x * tl.y -
           (tr.x * tl.y + br.x * tr.y + bl.x * br.y + tl.x * bl.y)
@@ -455,11 +672,9 @@
       cropCtx.clearRect(0, 0, cropCanvas.width, cropCanvas.height);
       cropCtx.drawImage(rawImg, 0, 0, cropCanvas.width, cropCanvas.height);
 
-      // 遮罩层
       cropCtx.fillStyle = 'rgba(0, 0, 0, 0.45)';
       cropCtx.fillRect(0, 0, cropCanvas.width, cropCanvas.height);
 
-      // 挖出选区高亮
       cropCtx.save();
       cropCtx.beginPath();
       corners.forEach((p, i) => {
@@ -472,7 +687,6 @@
       cropCtx.drawImage(rawImg, 0, 0, cropCanvas.width, cropCanvas.height);
       cropCtx.restore();
 
-      // 绿色边框线
       cropCtx.strokeStyle = '#69f0ae';
       cropCtx.lineWidth = 2.5;
       cropCtx.beginPath();
@@ -484,7 +698,6 @@
       cropCtx.closePath();
       cropCtx.stroke();
 
-      // 4 个触摸圆点
       corners.forEach((p) => {
         const sx = p.x * displayScale, sy = p.y * displayScale;
         cropCtx.beginPath();
@@ -501,11 +714,9 @@
         cropCtx.stroke();
       });
 
-      // 手指拖动时，在左上角或右上角显示 2.5x 十字放大镜，防止手指遮挡视线
       if (draggingIdx !== -1) {
         const activePt = corners[draggingIdx];
         const magRadius = 46;
-        // 如果手指在左边，放大镜放右上角；反之放左上角
         const magX = (activePt.x * displayScale < cropCanvas.width / 2)
           ? cropCanvas.width - magRadius - 12
           : magRadius + 12;
@@ -527,7 +738,6 @@
           magX - magRadius, magY - magRadius, magRadius * 2, magRadius * 2
         );
 
-        // 十字准星
         cropCtx.strokeStyle = '#69f0ae';
         cropCtx.lineWidth = 1.5;
         cropCtx.beginPath();
@@ -536,7 +746,6 @@
         cropCtx.stroke();
         cropCtx.restore();
 
-        // 放大镜外圈白边
         cropCtx.beginPath();
         cropCtx.arc(magX, magY, magRadius, 0, Math.PI * 2);
         cropCtx.strokeStyle = '#69f0ae';
@@ -733,47 +942,30 @@
       document.getElementById('scan-step-upload').style.display = 'block';
     }
 
-    async function saveScanToAlbum() {
-      const btn = document.getElementById('saveAlbumBtn');
+    async function saveScanFile() {
+      const btn = document.getElementById('saveScanBtn');
       btn.disabled = true;
       btn.textContent = '正在保存...';
 
       try {
         const dataUrl = resultCanvas.toDataURL('image/jpeg', 0.92);
-        const fileName = `Scan_${Date.now()}.jpg`;
+        const now = new Date();
+        const fileName = `Scan_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}${String(now.getSeconds()).padStart(2,'0')}.jpg`;
+        const base64Data = dataUrl.split(',')[1];
 
-        if (window.Capacitor && window.Capacitor.isNativePlatform()) {
-          const base64Data = dataUrl.split(',')[1];
-          const { Filesystem, Media, Share } = window.Capacitor.Plugins;
-
-          const savedFile = await Filesystem.writeFile({
-            path: fileName,
-            data: base64Data,
-            directory: 'CACHE'
-          });
-
-          try {
-            if (Media && Media.savePhoto) {
-              await Media.savePhoto({ path: savedFile.uri });
-              alert('已成功存入手机相册！');
-            } else {
-              await Share.share({ title: fileName, url: savedFile.uri });
-            }
-          } catch (mediaErr) {
-            // 如果系统限制相册直写权限，自动降级唤起系统保存/分享面板
-            await Share.share({ title: fileName, url: savedFile.uri });
-          }
-        } else {
+        const res = await saveBase64ToSelectedFolder(fileName, base64Data);
+        if (!res.uri) {
           const a = document.createElement('a');
           a.href = dataUrl;
           a.download = fileName;
           a.click();
         }
+        alert(`✅ 已保存至：\n${res.displayPath}`);
       } catch (err) {
         alert('保存失败: ' + err.message);
       } finally {
         btn.disabled = false;
-        btn.textContent = '存入相册';
+        btn.textContent = '存入文件夹';
       }
     }
 
@@ -818,7 +1010,7 @@
         imgListEl.appendChild(div);
       });
       genPdfBtn.disabled = selectedImages.length === 0;
-      genPdfBtn.textContent = `生成并保存 PDF (${selectedImages.length} 张)`;
+      genPdfBtn.textContent = `生成并存入文件夹 (${selectedImages.length} 张)`;
     }
 
     function moveImg(index, dir) {
@@ -858,27 +1050,21 @@
         let fileName = document.getElementById('pdfName').value.trim();
         if (!fileName) {
           const now = new Date();
-          fileName = `Scan_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
+          fileName = `PDF_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
         }
         if (!fileName.toLowerCase().endsWith('.pdf')) fileName += '.pdf';
 
-        if (window.Capacitor && window.Capacitor.isNativePlatform()) {
-          const base64Data = doc.output('datauristring').split(',')[1];
-          const { Filesystem, Share } = window.Capacitor.Plugins;
-          const savedFile = await Filesystem.writeFile({
-            path: fileName,
-            data: base64Data,
-            directory: 'CACHE'
-          });
-          await Share.share({ title: fileName, url: savedFile.uri });
-        } else {
+        const base64Data = doc.output('datauristring').split(',')[1];
+        const res = await saveBase64ToSelectedFolder(fileName, base64Data);
+        if (!res.uri) {
           doc.save(fileName);
         }
+        alert(`✅ PDF 已保存至：\n${res.displayPath}`);
       } catch (err) {
         alert('生成失败: ' + err.message);
       } finally {
         genPdfBtn.disabled = false;
-        genPdfBtn.textContent = `生成并保存 PDF (${selectedImages.length} 张)`;
+        genPdfBtn.textContent = `生成并存入文件夹 (${selectedImages.length} 张)`;
       }
     }
   </script>
