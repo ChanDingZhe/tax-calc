@@ -38,6 +38,8 @@ const Scanner = (() => {
         });
         loadImage(photo.dataUrl);
       } else {
+        // 如果没有 Capacitor 相机插件，降级为触发原生文件选择（通常手机会弹出相机/相册选项）
+        scanInput.setAttribute('capture', 'environment');
         scanInput.click();
       }
     } catch (err) {
@@ -484,7 +486,6 @@ const Scanner = (() => {
 
       const res = await Saf.saveFile(fileName, 'image/jpeg', base64Data);
       if (!res.ok) {
-        // 浏览器环境：直接下载
         const a = document.createElement('a');
         a.href = dataUrl;
         a.download = fileName;
@@ -519,11 +520,17 @@ const Scanner = (() => {
     detectHintEl = document.getElementById('detectHint');
     saveBtn = document.getElementById('saveScanBtn');
 
-    // 拍照 / 选图
+    // 🔴 关键修复：绑定拍照按钮
     document.querySelector('[data-action="take-photo"]')
       ?.addEventListener('click', takePhoto);
+
+    // 🔴 关键修复：绑定相册按钮
     document.querySelector('[data-action="pick-album"]')
-      ?.addEventListener('click', () => scanInput.click());
+      ?.addEventListener('click', () => {
+        scanInput.removeAttribute('capture'); // 确保选相册时不强制打开相机
+        scanInput.click();
+      });
+      
     scanInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (!file) return;
@@ -550,6 +557,8 @@ const Scanner = (() => {
     document.querySelector('[data-action="back-to-crop"]')
       ?.addEventListener('click', backToCrop);
     saveBtn?.addEventListener('click', saveScanFile);
+    
+    // 加入 PDF 列表按钮
     document.querySelector('[data-action="add-scan-to-pdf"]')
       ?.addEventListener('click', () => {
         const dataUrl = getCurrentImageDataUrl();

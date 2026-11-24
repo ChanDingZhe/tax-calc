@@ -5,154 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>日常百宝箱</title>
   <script src="jspdf.umd.min.js"></script>
-  <style>
-    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body {
-      margin: 0; padding: 18px 14px 82px; background: #121212; color: #f5f5f5;
-      min-height: 100vh; user-select: none; -webkit-user-select: none;
-    }
-    h2 { margin: 0 0 16px; font-size: 19px; font-weight: 600; color: #e0e0e0; }
-    .page { display: none; }
-    .page.active { display: block; }
-
-    /* 通用卡片与输入 */
-    .card {
-      background: #1e1e1e; border-radius: 16px; padding: 16px; margin-bottom: 14px;
-      border: 1px solid #2c2c2c;
-    }
-    label { display: block; font-size: 13px; color: #9e9e9e; margin-bottom: 8px; }
-    .input-row { display: flex; align-items: center; border-bottom: 2px solid #3a3a3a; padding-bottom: 6px; }
-    .input-row:focus-within { border-color: #4caf50; }
-    .prefix { font-size: 22px; font-weight: 600; color: #888; margin-right: 8px; }
-    input[type="number"], input[type="text"] {
-      width: 100%; background: transparent; border: none; outline: none;
-      color: #fff; font-size: 28px; font-weight: 700;
-    }
-    input[type="text"] { font-size: 16px; font-weight: 500; }
-
-    /* 保存路径选择栏 */
-    .path-bar {
-      display: flex; align-items: center; justify-content: space-between;
-      background: #18241c; border: 1px solid #2b4c35; border-radius: 12px;
-      padding: 11px 14px; margin-bottom: 14px; cursor: pointer;
-    }
-    .path-bar-left { overflow: hidden; padding-right: 8px; }
-    .path-bar-title { font-size: 11px; color: #81c784; margin-bottom: 3px; }
-    .path-bar-val {
-      font-size: 13px; font-weight: 600; color: #fff;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    }
-    .path-bar-btn {
-      background: #2e6b3e; color: #a5d6a7; border: none; border-radius: 8px;
-      padding: 7px 11px; font-size: 12px; font-weight: 600; flex-shrink: 0;
-    }
-
-    /* 路径选择弹窗 */
-    .modal-mask {
-      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75);
-      z-index: 200; align-items: flex-end; justify-content: center;
-    }
-    .modal-mask.show { display: flex; }
-    .modal-sheet {
-      width: 100%; max-width: 540px; background: #1c1c1c;
-      border-top-left-radius: 20px; border-top-right-radius: 20px;
-      padding: 20px 16px 28px; border-top: 1px solid #333;
-      max-height: 82vh; overflow-y: auto;
-    }
-    .modal-header {
-      display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;
-    }
-    .modal-header h3 { margin: 0; font-size: 17px; color: #fff; }
-    .modal-close {
-      background: #2c2c2c; color: #aaa; border: none; border-radius: 50%;
-      width: 30px; height: 30px; font-size: 16px;
-    }
-    .history-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
-    .history-item {
-      display: flex; align-items: center; justify-content: space-between;
-      background: #252525; padding: 12px 14px; border-radius: 12px;
-      border: 1px solid transparent;
-    }
-    .history-item.selected { background: #1b3a24; border-color: #4caf50; }
-    .history-item-info { flex: 1; overflow: hidden; padding-right: 10px; }
-    .history-item-name { font-size: 13px; font-weight: 600; color: #fff; word-break: break-all; }
-    .history-item-sub { font-size: 11px; color: #888; margin-top: 3px; }
-    .history-del {
-      background: transparent; border: none; color: #777; font-size: 16px; padding: 4px 8px;
-    }
-
-    /* 算税样式 */
-    .presets { display: flex; gap: 8px; margin-top: 12px; }
-    .presets button, .filter-bar button {
-      flex: 1; padding: 10px 0; border-radius: 8px; border: 1px solid #333;
-      background: #282828; color: #ddd; font-size: 13px; font-weight: 600;
-    }
-    .presets button:active, .filter-bar button.active { background: #4caf50; color: #000; border-color: #4caf50; }
-    .result-box {
-      background: linear-gradient(135deg, #1b3a24, #16291c);
-      border: 1px solid #2e6b3e; border-radius: 16px; padding: 18px;
-    }
-    .total-label { font-size: 14px; color: #a5d6a7; }
-    .total-val { font-size: 38px; font-weight: 800; color: #69f0ae; margin: 6px 0 12px; }
-    .detail-row {
-      display: flex; justify-content: space-between; font-size: 14px;
-      color: #c8e6c9; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.1);
-    }
-
-    /* 按钮 */
-    .btn {
-      margin-top: 12px; width: 100%; padding: 14px; border-radius: 12px;
-      border: none; font-size: 15px; font-weight: 600; cursor: pointer;
-    }
-    .btn-sm { padding: 10px 8px; font-size: 13px; border-radius: 10px; }
-    .btn-row { display: flex; gap: 8px; margin-top: 12px; }
-    .btn-row .btn { margin-top: 0; }
-    .btn-gray { background: #2c2c2c; color: #ccc; }
-    .btn-blue { background: #1e3a5f; color: #82b1ff; }
-    .btn-green { background: #4caf50; color: #000; }
-    .btn-green:disabled { background: #2e4a30; color: #777; }
-
-    /* 上传框 */
-    .upload-area {
-      border: 2px dashed #444; border-radius: 14px; padding: 24px 16px;
-      text-align: center; color: #aaa; background: #181818; cursor: pointer;
-    }
-    .upload-area strong { display: block; font-size: 15px; color: #fff; margin-bottom: 6px; }
-
-    /* PDF 列表 */
-    .img-list { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
-    .img-item {
-      display: flex; align-items: center; background: #252525; padding: 8px 10px;
-      border-radius: 10px; gap: 10px;
-    }
-    .img-item img { width: 50px; height: 50px; object-fit: cover; border-radius: 6px; background: #000; }
-    .img-info { flex: 1; font-size: 13px; color: #ddd; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .img-actions { display: flex; gap: 6px; }
-    .img-actions button { background: #333; color: #fff; border: none; border-radius: 6px; padding: 6px 10px; font-size: 13px; }
-    .img-actions button.del { background: #5c2626; color: #ff8a80; }
-
-    /* 文件扫描器画布 */
-    .canvas-wrap {
-      position: relative; width: 100%; display: flex; justify-content: center;
-      background: #0a0a0a; border-radius: 12px; overflow: hidden; touch-action: none;
-    }
-    #cropCanvas, #resultCanvas { max-width: 100%; max-height: 56vh; display: block; }
-    .filter-bar { display: flex; gap: 8px; margin-top: 12px; }
-    .hint-text { font-size: 12px; color: #9e9e9e; text-align: center; margin-top: 8px; }
-
-    /* 底部导航栏 */
-    .tab-bar {
-      position: fixed; bottom: 0; left: 0; right: 0; height: 64px;
-      background: #1a1a1a; border-top: 1px solid #2c2c2c;
-      display: flex; z-index: 99;
-    }
-    .tab-item {
-      flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-      color: #888; font-size: 12px; font-weight: 600; border: none; background: transparent;
-    }
-    .tab-item.active { color: #69f0ae; }
-    .tab-icon { font-size: 20px; margin-bottom: 2px; }
-  </style>
+  <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
 
@@ -173,10 +26,10 @@
         <span class="prefix">%</span>
       </div>
       <div class="presets">
-        <button onclick="setTax(16)">16%</button>
-        <button onclick="setTax(6)">6%</button>
-        <button onclick="setTax(10)">10%</button>
-        <button onclick="setTax(0)">0%</button>
+        <button type="button" data-tax="16">16%</button>
+        <button type="button" data-tax="6">6%</button>
+        <button type="button" data-tax="10">10%</button>
+        <button type="button" data-tax="0">0%</button>
       </div>
     </div>
     <div class="result-box">
@@ -187,63 +40,66 @@
         <span>现金凑整: <strong id="cashRound">RM 0.00</strong></span>
       </div>
     </div>
-    <button class="btn btn-gray" onclick="clearPrice()">清空价钱</button>
+    <button type="button" class="btn btn-gray" data-action="clear-price">清空价钱</button>
   </div>
 
-  <!-- 页面 2：智能离线文件扫描 -->
+  <!-- 页面 2：文件扫描 -->
   <div id="page-scan" class="page">
     <h2>离线文件扫描</h2>
 
-    <!-- 全局保存路径选择条 -->
-    <div class="path-bar" onclick="openPathModal()">
+    <!-- 保存路径选择条 -->
+    <div class="path-bar">
       <div class="path-bar-left">
         <div class="path-bar-title">📂 当前保存文件夹</div>
-        <div class="path-bar-val" id="scanPathDisplay">未选择（点击选择系统文件夹）</div>
+        <div class="path-bar-val" data-path-display>未选择（点击选择系统文件夹）</div>
       </div>
-      <button class="path-bar-btn">选择 Path</button>
+      <button type="button" class="path-bar-btn">选择 Path</button>
     </div>
 
-    <!-- 步骤 1：选择或拍摄照片 -->
+    <!-- 步骤 1：拍照 / 选图 -->
     <div id="scan-step-upload" class="card">
       <input id="scanInput" type="file" accept="image/*" style="display:none" />
-      <button class="btn btn-green" style="margin-top:0; padding:18px; font-size:17px;" onclick="takePhotoForScan()">
+      <button type="button" class="btn btn-green" style="margin-top:0; padding:18px; font-size:17px;" data-action="take-photo">
         📷 直接拍照扫描
       </button>
-      <button class="btn btn-gray" onclick="document.getElementById('scanInput').click()">
+      <button type="button" class="btn btn-gray" data-action="pick-album">
         🖼️ 从相册选择照片
       </button>
       <div class="hint-text" style="margin-top:12px;">自动识别纸张边缘 · 拖动十字放大镜微调 · 存入指定文件夹</div>
     </div>
 
-    <!-- 步骤 2：智能框选 + 拖动十字放大镜微调 -->
+    <!-- 步骤 2：框选 -->
     <div id="scan-step-crop" class="card" style="display:none">
       <div class="canvas-wrap">
         <canvas id="cropCanvas"></canvas>
       </div>
       <div class="hint-text" id="detectHint">已自动识别纸张边缘，按住绿点拖动可开启放大镜微调</div>
       <div class="btn-row">
-        <button class="btn btn-sm btn-gray" onclick="resetScan()">重选</button>
-        <button class="btn btn-sm btn-blue" onclick="autoDetectEdges(true)">✨ 自动框选</button>
-        <button class="btn btn-sm btn-gray" onclick="selectFullImage()">全图</button>
-        <button class="btn btn-sm btn-green" onclick="processPerspective()">确认拉正</button>
+        <button type="button" class="btn btn-sm btn-gray" data-action="reset-scan">重选</button>
+        <button type="button" class="btn btn-sm btn-blue" data-action="auto-detect">✨ 自动框选</button>
+        <button type="button" class="btn btn-sm btn-gray" data-action="select-full">全图</button>
+        <button type="button" class="btn btn-sm btn-green" data-action="process-perspective">确认拉正</button>
       </div>
     </div>
 
-    <!-- 步骤 3：预览滤镜并存入指定路径 -->
+    <!-- 步骤 3：滤镜 + 保存 -->
     <div id="scan-step-result" class="card" style="display:none">
       <div class="canvas-wrap">
         <canvas id="resultCanvas"></canvas>
       </div>
       <div class="filter-bar">
-        <button id="flt-enhance" class="active" onclick="applyFilter('enhance')">增强扫描</button>
-        <button id="flt-hd" onclick="applyFilter('hd')">高清扫描</button>
-        <button id="flt-bw" onclick="applyFilter('bw')">纯黑白</button>
-        <button id="flt-orig" onclick="applyFilter('orig')">原图</button>
+        <button type="button" id="flt-enhance" class="active" data-filter="enhance">增强扫描</button>
+        <button type="button" id="flt-hd" data-filter="hd">高清扫描</button>
+        <button type="button" id="flt-bw" data-filter="bw">纯黑白</button>
+        <button type="button" id="flt-orig" data-filter="orig">原图</button>
       </div>
       <div class="btn-row">
-        <button class="btn btn-gray" onclick="backToCrop()">重新调角</button>
-        <button id="saveScanBtn" class="btn btn-green" onclick="saveScanFile()">存入文件夹</button>
+        <button type="button" class="btn btn-gray" data-action="back-to-crop">重新调角</button>
+        <button type="button" id="saveScanBtn" class="btn btn-green">存入文件夹</button>
       </div>
+      <button type="button" class="btn btn-blue" style="margin-top:8px;" data-action="add-scan-to-pdf">
+        ➕ 将当前扫描页加入 PDF 列表
+      </button>
     </div>
   </div>
 
@@ -251,13 +107,12 @@
   <div id="page-pdf" class="page">
     <h2>照片转 PDF</h2>
 
-    <!-- 全局保存路径选择条 -->
-    <div class="path-bar" onclick="openPathModal()">
+    <div class="path-bar">
       <div class="path-bar-left">
         <div class="path-bar-title">📂 当前保存文件夹</div>
-        <div class="path-bar-val" id="pdfPathDisplay">未选择（点击选择系统文件夹）</div>
+        <div class="path-bar-val" data-path-display>未选择（点击选择系统文件夹）</div>
       </div>
-      <button class="path-bar-btn">选择 Path</button>
+      <button type="button" class="path-bar-btn">选择 Path</button>
     </div>
 
     <div class="card">
@@ -266,26 +121,32 @@
         <input id="pdfName" type="text" placeholder="留空则自动按时间命名" />
       </div>
     </div>
+
     <div class="card">
       <input id="fileInput" type="file" accept="image/*" multiple style="display:none" />
-      <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+      <div class="upload-area" data-action="pick-pdf-images">
         <strong>+ 点击选择照片（支持多选）</strong>
         <span>可调整前后顺序，合成 A4 PDF</span>
       </div>
       <div id="imgList" class="img-list"></div>
     </div>
-    <button id="genPdfBtn" class="btn btn-green" onclick="generatePDF()" disabled>生成并存入文件夹 (0 张)</button>
-    <button class="btn btn-gray" onclick="clearImages()">清空所有照片</button>
+
+    <button type="button" id="genPdfBtn" class="btn btn-green" disabled>
+      生成并存入文件夹 (0 张)
+    </button>
+    <button type="button" class="btn btn-gray" data-action="clear-pdf-images">
+      清空所有照片
+    </button>
   </div>
 
-  <!-- 系统文件夹选择与历史记录弹窗 -->
-  <div id="pathModal" class="modal-mask" onclick="if(event.target===this) closePathModal()">
+  <!-- 路径选择弹窗 -->
+  <div id="pathModal" class="modal-mask">
     <div class="modal-sheet">
       <div class="modal-header">
         <h3>选择保存文件夹</h3>
-        <button class="modal-close" onclick="closePathModal()">✕</button>
+        <button type="button" class="modal-close" data-action="close-path-modal">✕</button>
       </div>
-      <button class="btn btn-green" style="margin-top:0; margin-bottom:14px;" onclick="triggerNativePickDir()">
+      <button type="button" class="btn btn-green" style="margin-top:0; margin-bottom:14px;" data-action="pick-dir">
         📂 打开手机文件夹选择器（新增/授权目录）
       </button>
       <label>已授权的历史文件夹（点击直接切换，无需重复授权）</label>
@@ -293,850 +154,28 @@
     </div>
   </div>
 
-  <!-- 底部导航栏 -->
+  <!-- 底部导航 -->
   <div class="tab-bar">
-    <button class="tab-item active" onclick="switchTab('tax', this)">
+    <button type="button" class="tab-item active" data-tab="tax">
       <span class="tab-icon">🧮</span>
       <span>餐饮算税</span>
     </button>
-    <button class="tab-item" onclick="switchTab('scan', this)">
+    <button type="button" class="tab-item" data-tab="scan">
       <span class="tab-icon">📷</span>
       <span>文件扫描</span>
     </button>
-    <button class="tab-item" onclick="switchTab('pdf', this)">
+    <button type="button" class="tab-item" data-tab="pdf">
       <span class="tab-icon">📄</span>
       <span>照片转PDF</span>
     </button>
   </div>
 
-  <script>
-    /* ========== 原生 SAF 系统文件夹选择器 & 历史记录管理 ========== */
-    // 结构: [{ uri: "content://...", path: "/storage/emulated/0/-日常保险箱", count: 0, lastUsed: "..." }]
-    let folderHistory = [];
-    try {
-      folderHistory = JSON.parse(localStorage.getItem('toolbox_saf_history')) || [];
-    } catch (e) { folderHistory = []; }
-
-    let activeFolder = null;
-    try {
-      activeFolder = JSON.parse(localStorage.getItem('toolbox_saf_active')) || null;
-    } catch (e) { activeFolder = null; }
-
-    function syncFolderUI() {
-      const text = activeFolder ? activeFolder.path : '未选择（点击选择手机文件夹）';
-      document.getElementById('scanPathDisplay').textContent = text;
-      document.getElementById('pdfPathDisplay').textContent = text;
-      localStorage.setItem('toolbox_saf_active', JSON.stringify(activeFolder));
-      localStorage.setItem('toolbox_saf_history', JSON.stringify(folderHistory));
-    }
-
-    function openPathModal() {
-      renderFolderHistory();
-      document.getElementById('pathModal').classList.add('show');
-    }
-
-    function closePathModal() {
-      document.getElementById('pathModal').classList.remove('show');
-    }
-
-    function triggerNativePickDir() {
-      if (window.NativeSAF && window.NativeSAF.pickDirectory) {
-        window.NativeSAF.pickDirectory();
-      } else {
-        alert('当前环境不支持原生系统目录选择器，请在手机 APK 中使用。');
-      }
-    }
-
-    // Android 原生选完文件夹后的回调
-    window.onNativeDirPicked = function(treeUri, readablePath) {
-      const now = new Date();
-      const timeStr = `${now.getMonth()+1}/${now.getDate()} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-      const existingIdx = folderHistory.findIndex(item => item.uri === treeUri);
-
-      let targetItem;
-      if (existingIdx !== -1) {
-        targetItem = folderHistory.splice(existingIdx, 1)[0];
-        targetItem.path = readablePath;
-        targetItem.lastUsed = `最近选择: ${timeStr}`;
-      } else {
-        targetItem = { uri: treeUri, path: readablePath, count: 0, lastUsed: `授权于 ${timeStr}` };
-      }
-      folderHistory.unshift(targetItem);
-      activeFolder = targetItem;
-      syncFolderUI();
-      renderFolderHistory();
-      closePathModal();
-    };
-
-    function selectHistoryFolder(idx) {
-      activeFolder = folderHistory[idx];
-      syncFolderUI();
-      closePathModal();
-    }
-
-    function deleteHistoryFolder(e, idx) {
-      e.stopPropagation();
-      const removed = folderHistory.splice(idx, 1)[0];
-      if (activeFolder && activeFolder.uri === removed.uri) {
-        activeFolder = folderHistory[0] || null;
-      }
-      syncFolderUI();
-      renderFolderHistory();
-    }
-
-    function renderFolderHistory() {
-      const listEl = document.getElementById('pathHistoryList');
-      listEl.innerHTML = '';
-      if (folderHistory.length === 0) {
-        listEl.innerHTML = '<div class="hint-text" style="padding:16px 0;">暂无记录，请点击上方绿色按钮选择你的文件夹（例如 -日常保险箱）</div>';
-        return;
-      }
-      folderHistory.forEach((item, idx) => {
-        const isSelected = activeFolder && activeFolder.uri === item.uri;
-        const div = document.createElement('div');
-        div.className = 'history-item' + (isSelected ? ' selected' : '');
-        div.onclick = () => selectHistoryFolder(idx);
-        div.innerHTML = `
-          <div class="history-item-info">
-            <div class="history-item-name">📁 ${item.path}</div>
-            <div class="history-item-sub">${item.lastUsed} · 已存 ${item.count || 0} 次</div>
-          </div>
-          <button class="history-del" onclick="deleteHistoryFolder(event, ${idx})">✕</button>
-        `;
-        listEl.appendChild(div);
-      });
-    }
-
-    syncFolderUI();
-
-    /* 统一写入已选定的系统文件夹 */
-    async function saveFileToSelectedFolder(fileName, mimeType, base64Data) {
-      if (window.NativeSAF && window.NativeSAF.writeFileToTree) {
-        if (!activeFolder || !activeFolder.uri) {
-          openPathModal();
-          throw new Error('请先点击上方绿色按钮选择一个保存文件夹！');
-        }
-        const res = window.NativeSAF.writeFileToTree(activeFolder.uri, fileName, mimeType, base64Data);
-        if (res.startsWith('OK:')) {
-          const savedFullPath = res.substring(3);
-          const now = new Date();
-          const timeStr = `${now.getMonth()+1}/${now.getDate()} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-          const idx = folderHistory.findIndex(f => f.uri === activeFolder.uri);
-          if (idx !== -1) {
-            folderHistory[idx].count = (folderHistory[idx].count || 0) + 1;
-            folderHistory[idx].lastUsed = `最近保存: ${timeStr}`;
-            activeFolder = folderHistory[idx];
-            syncFolderUI();
-          }
-          return { ok: true, displayPath: savedFullPath };
-        } else {
-          throw new Error(res.substring(4));
-        }
-      } else {
-        return { ok: false, displayPath: fileName };
-      }
-    }
-
-    /* ========== 底部导航切换 ========== */
-    function switchTab(tabName, el) {
-      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-      document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
-      document.getElementById('page-' + tabName).classList.add('active');
-      el.classList.add('active');
-    }
-
-    /* ========== 1. 算税逻辑 ========== */
-    const priceEl = document.getElementById('price');
-    const taxEl = document.getElementById('tax');
-    const totalEl = document.getElementById('total');
-    const taxAmtEl = document.getElementById('taxAmt');
-    const cashRoundEl = document.getElementById('cashRound');
-
-    const savedTax = localStorage.getItem('saved_tax_rate');
-    if (savedTax !== null) taxEl.value = savedTax;
-
-    function calculate() {
-      const price = parseFloat(priceEl.value) || 0;
-      const taxRate = parseFloat(taxEl.value) || 0;
-      localStorage.setItem('saved_tax_rate', taxEl.value);
-
-      const priceCents = Math.round(price * 100);
-      const taxCents = Math.round(priceCents * (taxRate / 100));
-      const total = (priceCents + taxCents) / 100;
-
-      totalEl.textContent = 'RM ' + total.toFixed(2);
-      taxAmtEl.textContent = 'RM ' + (taxCents / 100).toFixed(2);
-      cashRoundEl.textContent = 'RM ' + (Math.round(total * 20) / 20).toFixed(2);
-    }
-    function setTax(val) { taxEl.value = val; calculate(); priceEl.focus(); }
-    function clearPrice() { priceEl.value = ''; calculate(); priceEl.focus(); }
-    priceEl.addEventListener('input', calculate);
-    taxEl.addEventListener('input', calculate);
-
-    /* ========== 2. 智能离线文件扫描 ========== */
-    const scanInput = document.getElementById('scanInput');
-    const cropCanvas = document.getElementById('cropCanvas');
-    const cropCtx = cropCanvas.getContext('2d');
-    const resultCanvas = document.getElementById('resultCanvas');
-    const resultCtx = resultCanvas.getContext('2d');
-
-    let rawImg = null;
-    let displayScale = 1;
-    let corners = [];
-    let draggingIdx = -1;
-    let warpedRawData = null;
-
-    async function takePhotoForScan() {
-      try {
-        if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Camera) {
-          const { Camera } = window.Capacitor.Plugins;
-          const photo = await Camera.getPhoto({
-            quality: 90,
-            allowEditing: false,
-            resultType: 'dataUrl',
-            source: 'CAMERA'
-          });
-          loadScanImage(photo.dataUrl);
-        } else {
-          document.getElementById('scanInput').click();
-        }
-      } catch (err) {
-        if (err.message && !err.message.includes('cancelled')) {
-          alert('无法打开相机: ' + err.message);
-        }
-      }
-    }
-
-    scanInput.addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (ev) => loadScanImage(ev.target.result);
-      reader.readAsDataURL(file);
-      scanInput.value = '';
-    });
-
-    function loadScanImage(dataUrl) {
-      const img = new Image();
-      img.onload = () => {
-        rawImg = img;
-        initCropCanvas();
-        document.getElementById('scan-step-upload').style.display = 'none';
-        document.getElementById('scan-step-result').style.display = 'none';
-        document.getElementById('scan-step-crop').style.display = 'block';
-      };
-      img.src = dataUrl;
-    }
-
-    function initCropCanvas() {
-      const maxW = Math.min(window.innerWidth - 60, 600);
-      displayScale = maxW / rawImg.width;
-      cropCanvas.width = rawImg.width * displayScale;
-      cropCanvas.height = rawImg.height * displayScale;
-      autoDetectEdges(false);
-    }
-
-    function autoDetectEdges(isManualTrigger) {
-      const targetW = 240;
-      const scale = targetW / rawImg.width;
-      const w = targetW;
-      const h = Math.round(rawImg.height * scale);
-
-      const c = document.createElement('canvas');
-      c.width = w; c.height = h;
-      const ctx = c.getContext('2d');
-      ctx.drawImage(rawImg, 0, 0, w, h);
-      const data = ctx.getImageData(0, 0, w, h).data;
-
-      const gray = new Float32Array(w * h);
-      let centerSum = 0, centerCnt = 0;
-      for (let y = 0; y < h; y++) {
-        for (let x = 0; x < w; x++) {
-          const i = (y * w + x) * 4;
-          const g = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
-          gray[y * w + x] = g;
-          if (x > w * 0.3 && x < w * 0.7 && y > h * 0.3 && y < h * 0.7) {
-            centerSum += g; centerCnt++;
-          }
-        }
-      }
-      const centerAvg = centerSum / (centerCnt || 1);
-
-      const blur = new Float32Array(w * h);
-      for (let y = 1; y < h - 1; y++) {
-        for (let x = 1; x < w - 1; x++) {
-          let s = 0;
-          for (let dy = -1; dy <= 1; dy++) {
-            for (let dx = -1; dx <= 1; dx++) s += gray[(y + dy) * w + (x + dx)];
-          }
-          blur[y * w + x] = s / 9;
-        }
-      }
-
-      const edgePts = [];
-      const pad = Math.round(Math.min(w, h) * 0.03);
-      for (let y = pad; y < h - pad; y++) {
-        for (let x = pad; x < w - pad; x++) {
-          const idx = y * w + x;
-          const gx = -blur[idx - w - 1] + blur[idx - w + 1] - 2 * blur[idx - 1] + 2 * blur[idx + 1] - blur[idx + w - 1] + blur[idx + w + 1];
-          const gy = -blur[idx - w - 1] - 2 * blur[idx - w] - blur[idx - w + 1] + blur[idx + w - 1] + 2 * blur[idx + w] + blur[idx + w + 1];
-          const mag = Math.hypot(gx, gy);
-
-          if (mag > 65) {
-            const localBright = Math.max(blur[idx], blur[idx - 2] || 0, blur[idx + 2] || 0, blur[idx - w * 2] || 0, blur[idx + w * 2] || 0);
-            if (centerAvg < 110 || localBright > centerAvg * 0.65) {
-              edgePts.push({ x, y });
-            }
-          }
-        }
-      }
-
-      let fallback = false;
-      if (edgePts.length > 40) {
-        let tl = edgePts[0], br = edgePts[0], tr = edgePts[0], bl = edgePts[0];
-        let minSum = Infinity, maxSum = -Infinity, maxDiff = -Infinity, minDiff = Infinity;
-
-        for (const p of edgePts) {
-          const sum = p.x + p.y;
-          const diff = p.x - p.y;
-          if (sum < minSum) { minSum = sum; tl = p; }
-          if (sum > maxSum) { maxSum = sum; br = p; }
-          if (diff > maxDiff) { maxDiff = diff; tr = p; }
-          if (diff < minDiff) { minDiff = diff; bl = p; }
-        }
-
-        const area = 0.5 * Math.abs(
-          tl.x * tr.y + tr.x * br.y + br.x * bl.y + bl.x * tl.y -
-          (tr.x * tl.y + br.x * tr.y + bl.x * br.y + tl.x * bl.y)
-        );
-        const ratio = area / (w * h);
-
-        if (ratio > 0.15 && ratio < 0.96) {
-          corners = [
-            { x: tl.x / scale, y: tl.y / scale },
-            { x: tr.x / scale, y: tr.y / scale },
-            { x: br.x / scale, y: br.y / scale },
-            { x: bl.x / scale, y: bl.y / scale }
-          ];
-          document.getElementById('detectHint').textContent = '✨ 已自动吸附纸张四角（按住绿点拖动可用放大镜微调）';
-        } else {
-          fallback = true;
-        }
-      } else {
-        fallback = true;
-      }
-
-      if (fallback) {
-        const padX = rawImg.width * 0.1;
-        const padY = rawImg.height * 0.1;
-        corners = [
-          { x: padX, y: padY },
-          { x: rawImg.width - padX, y: padY },
-          { x: rawImg.width - padX, y: rawImg.height - padY },
-          { x: padX, y: rawImg.height - padY }
-        ];
-        document.getElementById('detectHint').textContent = isManualTrigger
-          ? '背景对比度较低，请手动拖动 4 个绿点对齐纸角'
-          : '请拖动 4 个绿色圆点对准纸张四角（支持放大镜微调）';
-      }
-
-      drawCropUI();
-    }
-
-    function selectFullImage() {
-      corners = [
-        { x: 0, y: 0 },
-        { x: rawImg.width, y: 0 },
-        { x: rawImg.width, y: rawImg.height },
-        { x: 0, y: rawImg.height }
-      ];
-      drawCropUI();
-    }
-
-    function drawCropUI() {
-      cropCtx.clearRect(0, 0, cropCanvas.width, cropCanvas.height);
-      cropCtx.drawImage(rawImg, 0, 0, cropCanvas.width, cropCanvas.height);
-
-      cropCtx.fillStyle = 'rgba(0, 0, 0, 0.45)';
-      cropCtx.fillRect(0, 0, cropCanvas.width, cropCanvas.height);
-
-      cropCtx.save();
-      cropCtx.beginPath();
-      corners.forEach((p, i) => {
-        const sx = p.x * displayScale, sy = p.y * displayScale;
-        if (i === 0) cropCtx.moveTo(sx, sy);
-        else cropCtx.lineTo(sx, sy);
-      });
-      cropCtx.closePath();
-      cropCtx.clip();
-      cropCtx.drawImage(rawImg, 0, 0, cropCanvas.width, cropCanvas.height);
-      cropCtx.restore();
-
-      cropCtx.strokeStyle = '#69f0ae';
-      cropCtx.lineWidth = 2.5;
-      cropCtx.beginPath();
-      corners.forEach((p, i) => {
-        const sx = p.x * displayScale, sy = p.y * displayScale;
-        if (i === 0) cropCtx.moveTo(sx, sy);
-        else cropCtx.lineTo(sx, sy);
-      });
-      cropCtx.closePath();
-      cropCtx.stroke();
-
-      corners.forEach((p) => {
-        const sx = p.x * displayScale, sy = p.y * displayScale;
-        cropCtx.beginPath();
-        cropCtx.arc(sx, sy, 14, 0, Math.PI * 2);
-        cropCtx.fillStyle = 'rgba(105, 240, 174, 0.35)';
-        cropCtx.fill();
-
-        cropCtx.beginPath();
-        cropCtx.arc(sx, sy, 7, 0, Math.PI * 2);
-        cropCtx.fillStyle = '#69f0ae';
-        cropCtx.fill();
-        cropCtx.strokeStyle = '#000';
-        cropCtx.lineWidth = 1.5;
-        cropCtx.stroke();
-      });
-
-      if (draggingIdx !== -1) {
-        const activePt = corners[draggingIdx];
-        const magRadius = 46;
-        const magX = (activePt.x * displayScale < cropCanvas.width / 2)
-          ? cropCanvas.width - magRadius - 12
-          : magRadius + 12;
-        const magY = magRadius + 12;
-
-        cropCtx.save();
-        cropCtx.beginPath();
-        cropCtx.arc(magX, magY, magRadius, 0, Math.PI * 2);
-        cropCtx.clip();
-
-        cropCtx.fillStyle = '#000';
-        cropCtx.fillRect(magX - magRadius, magY - magRadius, magRadius * 2, magRadius * 2);
-
-        const zoom = 2.2;
-        const srcSize = (magRadius * 2) / zoom / displayScale;
-        cropCtx.drawImage(
-          rawImg,
-          activePt.x - srcSize / 2, activePt.y - srcSize / 2, srcSize, srcSize,
-          magX - magRadius, magY - magRadius, magRadius * 2, magRadius * 2
-        );
-
-        cropCtx.strokeStyle = '#69f0ae';
-        cropCtx.lineWidth = 1.5;
-        cropCtx.beginPath();
-        cropCtx.moveTo(magX - 14, magY); cropCtx.lineTo(magX + 14, magY);
-        cropCtx.moveTo(magX, magY - 14); cropCtx.lineTo(magX, magY + 14);
-        cropCtx.stroke();
-        cropCtx.restore();
-
-        cropCtx.beginPath();
-        cropCtx.arc(magX, magY, magRadius, 0, Math.PI * 2);
-        cropCtx.strokeStyle = '#69f0ae';
-        cropCtx.lineWidth = 3;
-        cropCtx.stroke();
-      }
-    }
-
-    function getPointerPos(e) {
-      const rect = cropCanvas.getBoundingClientRect();
-      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-      return {
-        x: (clientX - rect.left) / displayScale,
-        y: (clientY - rect.top) / displayScale
-      };
-    }
-
-    function onPointerDown(e) {
-      const pos = getPointerPos(e);
-      const hitRadius = 42 / displayScale;
-      let minDist = hitRadius;
-      draggingIdx = -1;
-      corners.forEach((p, idx) => {
-        const d = Math.hypot(p.x - pos.x, p.y - pos.y);
-        if (d < minDist) { minDist = d; draggingIdx = idx; }
-      });
-      if (draggingIdx !== -1) drawCropUI();
-    }
-
-    function onPointerMove(e) {
-      if (draggingIdx === -1) return;
-      e.preventDefault();
-      const pos = getPointerPos(e);
-      corners[draggingIdx].x = Math.max(0, Math.min(rawImg.width, pos.x));
-      corners[draggingIdx].y = Math.max(0, Math.min(rawImg.height, pos.y));
-      drawCropUI();
-    }
-
-    function onPointerUp() {
-      if (draggingIdx !== -1) {
-        draggingIdx = -1;
-        drawCropUI();
-      }
-    }
-
-    cropCanvas.addEventListener('touchstart', onPointerDown, { passive: false });
-    cropCanvas.addEventListener('touchmove', onPointerMove, { passive: false });
-    cropCanvas.addEventListener('touchend', onPointerUp);
-    cropCanvas.addEventListener('mousedown', onPointerDown);
-    window.addEventListener('mousemove', onPointerMove);
-    window.addEventListener('mouseup', onPointerUp);
-
-    function computeHomography(srcPts, dstPts) {
-      const A = [];
-      for (let i = 0; i < 4; i++) {
-        const sx = srcPts[i].x, sy = srcPts[i].y;
-        const dx = dstPts[i].x, dy = dstPts[i].y;
-        A.push([sx, sy, 1, 0, 0, 0, -dx * sx, -dx * sy, dx]);
-        A.push([0, 0, 0, sx, sy, 1, -dy * sx, -dy * sy, dy]);
-      }
-      const n = 8;
-      for (let i = 0; i < n; i++) {
-        let maxRow = i;
-        for (let k = i + 1; k < n; k++) {
-          if (Math.abs(A[k][i]) > Math.abs(A[maxRow][i])) maxRow = k;
-        }
-        [A[i], A[maxRow]] = [A[maxRow], A[i]];
-        for (let k = i + 1; k < n; k++) {
-          const factor = A[k][i] / A[i][i];
-          for (let j = i; j <= n; j++) A[k][j] -= factor * A[i][j];
-        }
-      }
-      const h = new Array(9);
-      h[8] = 1;
-      for (let i = n - 1; i >= 0; i--) {
-        let sum = A[i][n];
-        for (let j = i + 1; j < n; j++) sum -= A[i][j] * h[j];
-        h[i] = sum / A[i][i];
-      }
-      return h;
-    }
-
-    function processPerspective() {
-      const topW = Math.hypot(corners[1].x - corners[0].x, corners[1].y - corners[0].y);
-      const botW = Math.hypot(corners[2].x - corners[3].x, corners[2].y - corners[3].y);
-      const leftH = Math.hypot(corners[3].x - corners[0].x, corners[3].y - corners[0].y);
-      const rightH = Math.hypot(corners[2].x - corners[1].x, corners[2].y - corners[1].y);
-
-      let outW = Math.round(Math.max(topW, botW));
-      let outH = Math.round(Math.max(leftH, rightH));
-      const maxDim = 1800;
-      if (outW > maxDim || outH > maxDim) {
-        const s = maxDim / Math.max(outW, outH);
-        outW = Math.round(outW * s);
-        outH = Math.round(outH * s);
-      }
-
-      const offCanvas = document.createElement('canvas');
-      offCanvas.width = rawImg.width;
-      offCanvas.height = rawImg.height;
-      const offCtx = offCanvas.getContext('2d');
-      offCtx.drawImage(rawImg, 0, 0);
-      const srcData = offCtx.getImageData(0, 0, rawImg.width, rawImg.height).data;
-      const srcW = rawImg.width, srcH = rawImg.height;
-
-      const dstRect = [
-        { x: 0, y: 0 },
-        { x: outW, y: 0 },
-        { x: outW, y: outH },
-        { x: 0, y: outH }
-      ];
-      const H = computeHomography(dstRect, corners);
-
-      resultCanvas.width = outW;
-      resultCanvas.height = outH;
-      const outImgData = resultCtx.createImageData(outW, outH);
-      const dst = outImgData.data;
-
-      for (let y = 0; y < outH; y++) {
-        for (let x = 0; x < outW; x++) {
-          const w = H[6] * x + H[7] * y + H[8];
-          const sx = (H[0] * x + H[1] * y + H[2]) / w;
-          const sy = (H[3] * x + H[4] * y + H[5]) / w;
-
-          const x0 = Math.floor(sx), y0 = Math.floor(sy);
-          const dstIdx = (y * outW + x) * 4;
-
-          if (x0 >= 0 && x0 < srcW - 1 && y0 >= 0 && y0 < srcH - 1) {
-            const dx = sx - x0, dy = sy - y0;
-            const w00 = (1 - dx) * (1 - dy);
-            const w10 = dx * (1 - dy);
-            const w01 = (1 - dx) * dy;
-            const w11 = dx * dy;
-
-            const i00 = (y0 * srcW + x0) * 4;
-            const i10 = i00 + 4;
-            const i01 = i00 + srcW * 4;
-            const i11 = i01 + 4;
-
-            dst[dstIdx]     = srcData[i00]*w00 + srcData[i10]*w10 + srcData[i01]*w01 + srcData[i11]*w11;
-            dst[dstIdx + 1] = srcData[i00+1]*w00 + srcData[i10+1]*w10 + srcData[i01+1]*w01 + srcData[i11+1]*w11;
-            dst[dstIdx + 2] = srcData[i00+2]*w00 + srcData[i10+2]*w10 + srcData[i01+2]*w01 + srcData[i11+2]*w11;
-            dst[dstIdx + 3] = 255;
-          } else {
-            dst[dstIdx] = dst[dstIdx+1] = dst[dstIdx+2] = 255;
-            dst[dstIdx + 3] = 255;
-          }
-        }
-      }
-
-      warpedRawData = outImgData;
-      applyFilter('enhance');
-
-      document.getElementById('scan-step-crop').style.display = 'none';
-      document.getElementById('scan-step-result').style.display = 'block';
-    }
-
-    function applyFilter(type) {
-
-  if (!warpedRawData) return;
-
-  document
-    .querySelectorAll('.filter-bar button')
-    .forEach(btn => btn.classList.remove('active'));
-
-  document
-    .getElementById('flt-' + type)
-    .classList.add('active');
-
-  const w = warpedRawData.width;
-  const h = warpedRawData.height;
-
-  const output = resultCtx.createImageData(w, h);
-
-  const src = warpedRawData.data;
-  const dst = output.data;
-
-  let avg = 0;
-
-  for (let i = 0; i < src.length; i += 4) {
-    avg += (
-      src[i] * 0.299 +
-      src[i + 1] * 0.587 +
-      src[i + 2] * 0.114
-    );
-  }
-
-  avg /= (src.length / 4);
-
-  for (let i = 0; i < src.length; i += 4) {
-
-    let r = src[i];
-    let g = src[i + 1];
-    let b = src[i + 2];
-
-    if (type === 'orig') {
-
-      dst[i] = r;
-      dst[i + 1] = g;
-      dst[i + 2] = b;
-      dst[i + 3] = 255;
-
-      continue;
-    }
-
-    const gray =
-      r * 0.299 +
-      g * 0.587 +
-      b * 0.114;
-
-    if (type === 'enhance') {
-
-      let v = (gray - avg) * 1.55 + 220;
-
-      v = Math.max(0, Math.min(255, v));
-
-      dst[i] =
-      dst[i + 1] =
-      dst[i + 2] = v;
-
-      dst[i + 3] = 255;
-    }
-
-    else if (type === 'hd') {
-
-      const contrast = 1.8;
-
-      r = ((r - 128) * contrast) + 128;
-      g = ((g - 128) * contrast) + 128;
-      b = ((b - 128) * contrast) + 128;
-
-      r += 18;
-      g += 18;
-      b += 18;
-
-      r = Math.max(0, Math.min(255, r));
-      g = Math.max(0, Math.min(255, g));
-      b = Math.max(0, Math.min(255, b));
-
-      dst[i] = r;
-      dst[i + 1] = g;
-      dst[i + 2] = b;
-      dst[i + 3] = 255;
-    }
-
-    else if (type === 'bw') {
-
-      const threshold =
-        avg > 160
-        ? avg - 10
-        : avg + 15;
-
-      const v =
-        gray > threshold
-        ? 255
-        : 0;
-
-      dst[i] =
-      dst[i + 1] =
-      dst[i + 2] =
-      v;
-
-      dst[i + 3] = 255;
-    }
-  }
-
-  resultCtx.putImageData(output, 0, 0);
-}
-
-    function backToCrop() {
-      document.getElementById('scan-step-result').style.display = 'none';
-      document.getElementById('scan-step-crop').style.display = 'block';
-    }
-
-    function resetScan() {
-      document.getElementById('scan-step-crop').style.display = 'none';
-      document.getElementById('scan-step-result').style.display = 'none';
-      document.getElementById('scan-step-upload').style.display = 'block';
-    }
-
-    async function saveScanFile() {
-      const btn = document.getElementById('saveScanBtn');
-      btn.disabled = true;
-      btn.textContent = '正在保存...';
-
-      try {
-        const dataUrl = resultCanvas.toDataURL('image/jpeg', 0.92);
-        const now = new Date();
-        const fileName = `Scan_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}${String(now.getSeconds()).padStart(2,'0')}.jpg`;
-        const base64Data = dataUrl.split(',')[1];
-
-        const res = await saveFileToSelectedFolder(fileName, 'image/jpeg', base64Data);
-        if (!res.ok) {
-          const a = document.createElement('a');
-          a.href = dataUrl;
-          a.download = fileName;
-          a.click();
-        }
-        alert(`✅ 已保存至：\n${res.displayPath}`);
-      } catch (err) {
-        alert(err.message);
-      } finally {
-        btn.disabled = false;
-        btn.textContent = '存入文件夹';
-      }
-    }
-
-    /* ========== 3. 照片转 PDF 逻辑 ========== */
-    let selectedImages = [];
-    const fileInput = document.getElementById('fileInput');
-    const imgListEl = document.getElementById('imgList');
-    const genPdfBtn = document.getElementById('genPdfBtn');
-
-    fileInput.addEventListener('change', async (e) => {
-      const files = Array.from(e.target.files);
-      for (const file of files) {
-        const dataUrl = await readFileAsDataURL(file);
-        selectedImages.push({ name: file.name, dataUrl });
-      }
-      fileInput.value = '';
-      renderImageList();
-    });
-
-    function readFileAsDataURL(file) {
-      return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (e) => resolve(e.target.result);
-        reader.readAsDataURL(file);
-      });
-    }
-
-    function renderImageList() {
-      imgListEl.innerHTML = '';
-      selectedImages.forEach((img, index) => {
-        const div = document.createElement('div');
-        div.className = 'img-item';
-        div.innerHTML = `
-          <img src="${img.dataUrl}" />
-          <div class="img-info">第 ${index + 1} 页 · ${img.name}</div>
-          <div class="img-actions">
-            ${index > 0 ? `<button onclick="moveImg(${index}, -1)">↑</button>` : ''}
-            ${index < selectedImages.length - 1 ? `<button onclick="moveImg(${index}, 1)">↓</button>` : ''}
-            <button class="del" onclick="removeImg(${index})">✕</button>
-          </div>
-        `;
-        imgListEl.appendChild(div);
-      });
-      genPdfBtn.disabled = selectedImages.length === 0;
-      genPdfBtn.textContent = `生成并存入文件夹 (${selectedImages.length} 张)`;
-    }
-
-    function moveImg(index, dir) {
-      const target = index + dir;
-      [selectedImages[index], selectedImages[target]] = [selectedImages[target], selectedImages[index]];
-      renderImageList();
-    }
-    function removeImg(index) { selectedImages.splice(index, 1); renderImageList(); }
-    function clearImages() { selectedImages = []; renderImageList(); }
-    function loadImageObj(src) {
-      return new Promise((resolve) => {
-        const img = new Image();
-        img.onload = () => resolve(img);
-        img.src = src;
-      });
-    }
-
-    async function generatePDF() {
-      if (selectedImages.length === 0) return;
-      genPdfBtn.disabled = true;
-      genPdfBtn.textContent = '正在合成 PDF...';
-
-      try {
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
-        const pageW = 210, pageH = 297, margin = 10;
-        const maxW = pageW - margin * 2, maxH = pageH - margin * 2;
-
-        for (let i = 0; i < selectedImages.length; i++) {
-          if (i > 0) doc.addPage();
-          const imgObj = await loadImageObj(selectedImages[i].dataUrl);
-          const ratio = Math.min(maxW / imgObj.width, maxH / imgObj.height);
-          const drawW = imgObj.width * ratio, drawH = imgObj.height * ratio;
-          doc.addImage(selectedImages[i].dataUrl, 'JPEG', (pageW - drawW) / 2, (pageH - drawH) / 2, drawW, drawH);
-        }
-
-        let fileName = document.getElementById('pdfName').value.trim();
-        if (!fileName) {
-          const now = new Date();
-          fileName = `PDF_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
-        }
-        if (!fileName.toLowerCase().endsWith('.pdf')) fileName += '.pdf';
-
-        const base64Data = doc.output('datauristring').split(',')[1];
-        const res = await saveFileToSelectedFolder(fileName, 'application/pdf', base64Data);
-        if (!res.ok) {
-          doc.save(fileName);
-        }
-        alert(`✅ PDF 已保存至：\n${res.displayPath}`);
-      } catch (err) {
-        alert(err.message);
-      } finally {
-        genPdfBtn.disabled = false;
-        genPdfBtn.textContent = `生成并存入文件夹 (${selectedImages.length} 张)`;
-      }
-    }
-  </script>
+  <!-- 模块脚本，顺序不能乱 -->
+  <script src="js/saf.js"></script>
+  <script src="js/common.js"></script>
+  <script src="js/tax.js"></script>
+  <script src="js/scanner.js"></script>
+  <script src="js/pdf.js"></script>
+  <script src="js/app.js"></script>
 </body>
 </html>
