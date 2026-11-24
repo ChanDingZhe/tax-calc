@@ -144,3 +144,24 @@ input[type="text"] { font-size: 16px; font-weight: 500; }
 }
 .tab-item.active { color: #69f0ae; }
 .tab-icon { font-size: 20px; margin-bottom: 2px; }
+
+/* 合并页面的额外样式 */
+.section-divider {
+  border-top: 1px dashed #333;
+  margin: 18px 0 10px;
+  padding-top: 6px;
+  font-size: 13px;
+  color: #81c784;
+  font-weight: 600;
+}
+.merged-toolbar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.merged-toolbar .btn {
+  margin-top: 0;
+  flex: 1;
+  min-width: 140px;
+}
