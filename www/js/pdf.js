@@ -1,8 +1,8 @@
 /* ============================================================
- * 照片转 PDF
+ * 照片转 PDF (纯离线版)
  * 对外接口：PdfModule.init()
  *          PdfModule.addImage(dataUrl, name)  // 供 Scanner 调用
- * 依赖：Saf（保存文件）、window.jspdf（jsPDF）
+ * 依赖：Saf（保存文件）、window.jspdf（本地加载的 jsPDF）
  * ============================================================ */
 const PdfModule = (() => {
   let selectedImages = [];
@@ -17,9 +17,10 @@ const PdfModule = (() => {
   }
 
   function loadImageObj(src) {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       const img = new Image();
       img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error('图片加载失败'));
       img.src = src;
     });
   }
@@ -83,10 +84,16 @@ const PdfModule = (() => {
   /* ---------------- 生成 PDF ---------------- */
   async function generatePDF() {
     if (selectedImages.length === 0) return;
+    
     genPdfBtn.disabled = true;
     genPdfBtn.textContent = '正在合成 PDF...';
 
     try {
+      // 确保 jsPDF 已加载
+      if (!window.jspdf || !window.jspdf.jsPDF) {
+        throw new Error('jsPDF 库未加载，请检查网络或文件路径');
+      }
+
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
       const pageW = 210, pageH = 297, margin = 10;
@@ -94,10 +101,12 @@ const PdfModule = (() => {
 
       for (let i = 0; i < selectedImages.length; i++) {
         if (i > 0) doc.addPage();
+        
         const imgObj = await loadImageObj(selectedImages[i].dataUrl);
         const ratio = Math.min(maxW / imgObj.width, maxH / imgObj.height);
         const drawW = imgObj.width * ratio;
         const drawH = imgObj.height * ratio;
+        
         doc.addImage(
           selectedImages[i].dataUrl, 'JPEG',
           (pageW - drawW) / 2, (pageH - drawH) / 2,
@@ -112,21 +121,25 @@ const PdfModule = (() => {
       }
       if (!fileName.toLowerCase().endsWith('.pdf')) fileName += '.pdf';
 
+      // 生成 Base64 数据
       const base64Data = doc.output('datauristring').split(',')[1];
+      
+      // 保存到文件
       const res = await Saf.saveFile(fileName, 'application/pdf', base64Data);
 
       if (!res.ok) {
-        // 浏览器：走本地下载
+        // 浏览器环境降级下载
         doc.save(fileName);
         alert(`✅ PDF 已下载：${fileName}`);
       } else {
         alert(`✅ PDF 已保存至：\n${res.displayPath}`);
       }
     } catch (err) {
-      alert(err.message);
+      console.error(err);
+      alert('生成 PDF 失败：' + err.message);
     } finally {
       genPdfBtn.disabled = false;
-      genPdfBtn.textContent = `生成并存入文件夹 (${selectedImages.length} 张)`;
+      renderImageList(); // 恢复按钮状态
     }
   }
 
@@ -136,8 +149,10 @@ const PdfModule = (() => {
     imgListEl = document.getElementById('imgList');
     genPdfBtn = document.getElementById('genPdfBtn');
     pdfNameEl = document.getElementById('pdfName');
+    
     if (!fileInput || !imgListEl) return;
 
+    // 选择图片
     fileInput.addEventListener('change', async (e) => {
       const files = Array.from(e.target.files);
       for (const file of files) {
@@ -148,12 +163,15 @@ const PdfModule = (() => {
       renderImageList();
     });
 
+    // 🔴 关键修复：绑定上传区域点击事件
     document.querySelector('[data-action="pick-pdf-images"]')
       ?.addEventListener('click', () => fileInput.click());
 
+    // 🔴 关键修复：绑定生成 PDF 按钮事件
     document.querySelector('[data-action="generate-pdf"]')
       ?.addEventListener('click', generatePDF);
 
+    // 🔴 关键修复：绑定清空按钮事件
     document.querySelector('[data-action="clear-pdf-images"]')
       ?.addEventListener('click', clearImages);
 
