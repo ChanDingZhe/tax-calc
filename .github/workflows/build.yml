@@ -9,7 +9,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -17,12 +17,11 @@ jobs:
           node-version: "20"
 
       - name: Setup Java 17
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v4
         with:
           distribution: "temurin"
           java-version: "17"
 
-      # 从 Secret 还原 keystore
       - name: Restore keystore from secret
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
@@ -200,15 +199,32 @@ jobs:
           # 3. 确保 documentfile 依赖存在
           echo "dependencies { implementation 'androidx.documentfile:documentfile:1.0.1' }" >> android/app/build.gradle
 
-          # 4. 替换图标 (如果有 resources/icon.png)
+          # 4. 🌟 暴力替换所有图标（包括自适应图标的前景和背景）
           if [ -f "resources/icon.png" ]; then
-            echo "发现 resources/icon.png，开始替换 Android 图标..."
-            # 暴力覆盖 Capacitor 默认生成的各个尺寸的 ic_launcher
-            cp resources/icon.png android/app/src/main/res/mipmap-hdpi/ic_launcher.png
-            cp resources/icon.png android/app/src/main/res/mipmap-mdpi/ic_launcher.png
-            cp resources/icon.png android/app/src/main/res/mipmap-xhdpi/ic_launcher.png
-            cp resources/icon.png android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
-            cp resources/icon.png android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+            echo "找到 resources/icon.png，替换所有尺寸图标..."
+            # 循环覆盖各个密度的普通 ic_launcher
+            for dir in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
+              if [ -d "android/app/src/main/res/$dir" ]; then
+                cp resources/icon.png android/app/src/main/res/$dir/ic_launcher.png
+                cp resources/icon.png android/app/src/main/res/$dir/ic_launcher_round.png
+                cp resources/icon.png android/app/src/main/res/$dir/ic_launcher_foreground.png
+              fi
+            done
+            
+            # 核心：修改 anydpi-v26 里的自适应图标 XML，让它直接把 icon.png 作为全图使用
+            # 这样就能解决 Android 8.0+ 只显示默认绿色图标的问题
+            adaptive_dir="android/app/src/main/res/mipmap-anydpi-v26"
+            if [ -d "$adaptive_dir" ]; then
+              cat > "$adaptive_dir/ic_launcher.xml" << 'XML_EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+              <background android:drawable="@mipmap/ic_launcher_foreground" />
+              <foreground android:drawable="@mipmap/ic_launcher_foreground" />
+          </adaptive-icon>
+          XML_EOF
+              cp "$adaptive_dir/ic_launcher.xml" "$adaptive_dir/ic_launcher_round.xml"
+            fi
+            
             echo "图标替换完成。"
           else
             echo "::warning::未找到 resources/icon.png，将使用默认图标。"
