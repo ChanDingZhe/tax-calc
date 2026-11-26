@@ -9,7 +9,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -17,7 +17,7 @@ jobs:
           node-version: "20"
 
       - name: Setup Java 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: "temurin"
           java-version: "17"
@@ -38,6 +38,9 @@ jobs:
           STORE_PASS: ${{ secrets.KEYSTORE_STORE_PASS }}
           KEY_PASS: ${{ secrets.KEYSTORE_KEY_PASS }}
         run: |
+          set -e
+          set -x
+
           if [ -z "$STORE_PASS" ] || [ -z "$KEY_PASS" ]; then
             echo "::error::KEYSTORE_STORE_PASS or KEYSTORE_KEY_PASS secret is missing"
             exit 1
@@ -48,10 +51,8 @@ jobs:
           npx cap add android
           npx cap sync
 
-          # 1. 注入权限与原生 SAF 目录选择器
+          # 1. 注入权限与原生 SAF
           python3 - << 'EOF'
-          import os
-
           manifest_path = "android/app/src/main/AndroidManifest.xml"
           s = open(manifest_path).read()
           perms = """
@@ -173,7 +174,6 @@ jobs:
           gradle_path = "android/app/build.gradle"
           g = open(gradle_path).read()
 
-          # 生成日期版本名
           today = datetime.datetime.now()
           date_version = today.strftime("%y.%m.%d")
 
@@ -200,32 +200,18 @@ jobs:
           # 3. 确保 documentfile 依赖存在
           echo "dependencies { implementation 'androidx.documentfile:documentfile:1.0.1' }" >> android/app/build.gradle
 
-          # 4. 🌟 新增：强制 WebView 使用手机系统字体（跟随系统字体）
-          # 修改 styles.xml 使用 Theme.Material.Light.NoActionBar 避免覆盖系统字体
-          python3 - << 'EOF'
-          styles_path = "android/app/src/main/res/values/styles.xml"
-          try:
-              s = open(styles_path).read()
-              # 移除写死的字体设置，让 WebView 跟随系统默认
-              s = s.replace('<item name="android:fontFamily">sans-serif</item>', '')
-              # 确保 parent 是跟随系统的 Theme
-              s = s.replace('parent="Theme.AppCompat.Light.DarkActionBar"', 'parent="Theme.MaterialComponents.DayNight.NoActionBar"')
-              s = s.replace('parent="Theme.AppCompat.Light.NoActionBar"', 'parent="Theme.MaterialComponents.DayNight.NoActionBar"')
-              open(styles_path, "w").write(s)
-          except Exception as e:
-              print("修改 styles.xml 时跳过:", e)
-          EOF
-
-          # 5. 🌟 新增：生成并替换 App Icon
-          # 安装图标生成工具 cordova-res
-          npm install -g cordova-res
-          # 检查根目录是否存在 icon.png
-          if [ -f "icon.png" ]; then
-            echo "发现 icon.png，正在生成 Android 图标..."
-            # 生成图标到 android 资源目录
-            cordova-res android --skip-config --copy
+          # 4. 替换图标 (如果有 resources/icon.png)
+          if [ -f "resources/icon.png" ]; then
+            echo "发现 resources/icon.png，开始替换 Android 图标..."
+            # 暴力覆盖 Capacitor 默认生成的各个尺寸的 ic_launcher
+            cp resources/icon.png android/app/src/main/res/mipmap-hdpi/ic_launcher.png
+            cp resources/icon.png android/app/src/main/res/mipmap-mdpi/ic_launcher.png
+            cp resources/icon.png android/app/src/main/res/mipmap-xhdpi/ic_launcher.png
+            cp resources/icon.png android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
+            cp resources/icon.png android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+            echo "图标替换完成。"
           else
-            echo "::warning::未在根目录找到 icon.png，将使用 Capacitor 默认图标。"
+            echo "::warning::未找到 resources/icon.png，将使用默认图标。"
           fi
 
           cd android
