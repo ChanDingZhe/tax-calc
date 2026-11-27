@@ -16,7 +16,8 @@
       <label>食物价钱 (Price)</label>
       <div class="input-row">
         <span class="prefix">RM</span>
-        <input id="price" type="text" inputmode="text" placeholder="如: 12.5+8.9" autofocus />      </div>
+        <input id="price" type="text" inputmode="text" placeholder="如: 12.5+8.9" autofocus />
+      </div>
     </div>
     <div class="card">
       <label>税率 (Tax %)</label>
@@ -40,6 +41,8 @@
         <span style="flex:1; text-align:right;">凑整: <strong id="cashRound">RM 0.00</strong></span>
       </div>
     </div>
+    <button type="button" class="btn btn-gray" data-action="clear-price">清空价钱</button>
+  </div>
 
   <!-- 页面 2：扫描 & 照片转 PDF（合并版） -->
   <div id="page-scanpdf" class="page">
