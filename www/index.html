@@ -35,12 +35,11 @@
       <div class="total-label">实际应付总额</div>
       <div class="total-val" id="total">RM 0.00</div>
       <div class="detail-row">
-        <span>税额: <strong id="taxAmt">RM 0.00</strong></span>
-        <span>现金凑整: <strong id="cashRound">RM 0.00</strong></span>
+        <span style="flex:1; text-align:left;">税前: <strong id="basePrice">RM 0.00</strong></span>
+        <span style="flex:1; text-align:center;">税额: <strong id="taxAmt">RM 0.00</strong></span>
+        <span style="flex:1; text-align:right;">凑整: <strong id="cashRound">RM 0.00</strong></span>
       </div>
     </div>
-    <button type="button" class="btn btn-gray" data-action="clear-price">清空价钱</button>
-  </div>
 
   <!-- 页面 2：扫描 & 照片转 PDF（合并版） -->
   <div id="page-scanpdf" class="page">
